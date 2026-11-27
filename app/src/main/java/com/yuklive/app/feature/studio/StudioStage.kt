@@ -28,6 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -76,6 +79,7 @@ fun StudioStage(
     onFocus: (SurfaceView, Float, Float) -> Unit,
     onZoom: (Float) -> Unit,
     onTransition: () -> Unit,
+    transitionLabel: String,
     modifier: Modifier = Modifier,
 ) {
     if (!studioMode) {
@@ -85,34 +89,28 @@ fun StudioStage(
         )
         return
     }
-    val previewPanel: @Composable (Modifier) -> Unit = { m ->
-        ScenePreviewPanel(outputRatio, previewScene, selectedLayerId, renderer, liveStartedAt, onSelectLayer, onTransformLayer, m)
-    }
-    val programPanel: @Composable (Modifier) -> Unit = { m ->
-        ProgramPanel(
-            outputRatio, programScene.layers, null, renderer, editable = false, label = stringResource(R.string.studio_program),
-            isLive = isLive, onAttach, onDetach, {}, { _, _, _, _ -> }, onFocus, onZoom, m,
-        )
-    }
-    if (landscape) {
-        Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-            previewPanel(Modifier.weight(1f).fillMaxSize())
-            TransitionButton(onTransition, vertical = true)
-            programPanel(Modifier.weight(1f).fillMaxSize())
+    // Studio Mode: PREVIEW dan PROGRAM selalu berdampingan (orientasi layar sudah
+    // dikunci mengikuti stream, jadi berdampingan memberi panel terbesar).
+    @Suppress("UNUSED_VARIABLE") val unused = landscape
+    Column(modifier) {
+        Row(
+            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            ScenePreviewPanel(
+                outputRatio, previewScene, selectedLayerId, renderer, liveStartedAt,
+                onSelectLayer, onTransformLayer, Modifier.weight(1f).fillMaxHeight(),
+            )
+            ProgramPanel(
+                outputRatio, programScene.layers, null, renderer, editable = false,
+                label = stringResource(R.string.studio_program_short), isLive = isLive,
+                onAttach, onDetach, {}, { _, _, _, _ -> }, onFocus, onZoom,
+                Modifier.weight(1f).fillMaxHeight(),
+            )
         }
-    } else {
-        Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            previewPanel(Modifier.weight(1f).fillMaxWidth())
-            TransitionButton(onTransition, vertical = false)
-            programPanel(Modifier.weight(1f).fillMaxWidth())
+        Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+            PillButton(transitionLabel, onClick = onTransition, height = 36.dp)
         }
-    }
-}
-
-@Composable
-private fun TransitionButton(onClick: () -> Unit, vertical: Boolean) {
-    Box(Modifier.padding(if (vertical) 6.dp else 4.dp), contentAlignment = Alignment.Center) {
-        PillButton(stringResource(R.string.studio_transition), onClick = onClick, height = 36.dp)
     }
 }
 
@@ -145,7 +143,14 @@ private fun ProgramPanel(
 
     BoxWithConstraints(modifier.background(YukColors.Black), contentAlignment = Alignment.Center) {
         val (w, h) = fit(maxWidth, maxHeight, ratio)
-        Box(Modifier.size(w, h)) {
+        Box(
+            Modifier
+                .size(w, h)
+                .then(
+                    if (label != null) Modifier.border(2.dp, if (isLive) YukColors.Live else YukColors.BorderStrong)
+                    else Modifier,
+                ),
+        ) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx -> SurfaceView(ctx).also { surface = it; onAttach(it) } },
@@ -217,7 +222,13 @@ private fun ScenePreviewPanel(
 
     BoxWithConstraints(modifier.background(YukColors.Black), contentAlignment = Alignment.Center) {
         val (w, h) = fit(maxWidth, maxHeight, ratio)
-        Box(Modifier.size(w, h).background(YukColors.Surface).border(Dimens.Hairline, YukColors.Border)) {
+        Box(
+            Modifier
+                .size(w, h)
+                .clipToBounds()
+                .background(YukColors.Surface)
+                .border(2.dp, YukColors.Success),
+        ) {
             Text(
                 sourceLabel.uppercase(),
                 style = YukType.Label,
@@ -267,9 +278,14 @@ private fun PanelLabel(text: String, live: Boolean, modifier: Modifier = Modifie
         modifier
             .padding(6.dp)
             .background(if (live) YukColors.Live else YukColors.Overlay)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
-        YukLabel(text, color = YukColors.TextPrimary)
+        Text(
+            text.uppercase(),
+            style = YukType.LabelSmall,
+            color = YukColors.TextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

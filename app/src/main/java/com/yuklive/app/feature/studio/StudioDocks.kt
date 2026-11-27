@@ -1,6 +1,7 @@
 package com.yuklive.app.feature.studio
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -134,9 +135,9 @@ fun StudioStatusBar(
                 StreamPhase.Idle -> Triple(stringResource(R.string.status_offline), YukColors.Live, false)
             }
             StatusBadge(badge, active = active, activeColor = color)
-            Text(formatDuration(elapsedMs), style = YukType.Mono, color = YukColors.TextPrimary)
-            Stat(stringResource(R.string.studio_bitrate_value, stats.bitrateKbps))
             if (engine.isActive) {
+                Text(formatDuration(elapsedMs), style = YukType.Mono, color = YukColors.TextPrimary)
+                Stat(stringResource(R.string.studio_bitrate_value, stats.bitrateKbps))
                 Stat(stringResource(R.string.studio_fps_value, stats.fps))
                 Stat(stringResource(R.string.studio_dropped_value, stats.droppedFrames), if (stats.droppedFrames > 0) YukColors.Warning else YukColors.TextSecondary)
                 val (q, qc) = when (stats.quality) {
@@ -240,7 +241,9 @@ fun ScenesPanel(
     Column(modifier) {
         DockHeader(stringResource(R.string.dock_scenes, doc.scenes.size, OverlayDocument.MAX_SCENES)) {
             DockIcon(Icons.Outlined.Add, stringResource(R.string.overlay_add_scene), enabled = doc.scenes.size < OverlayDocument.MAX_SCENES, onClick = onAdd)
-            DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete), enabled = doc.scenes.size > 1 && editing != null) { editing?.let { onDelete(it.id) } }
+            if (doc.scenes.size > 1 && editing != null) {
+                DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete)) { onDelete(editing.id) }
+            }
             DockIcon(Icons.Outlined.Edit, stringResource(R.string.action_rename), enabled = editing != null) { editing?.let(onRename) }
             DockIcon(Icons.Outlined.KeyboardArrowUp, stringResource(R.string.action_move_up), enabled = editing != null) { editing?.let { onMove(it.id, true) } }
             DockIcon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.action_move_down), enabled = editing != null) { editing?.let { onMove(it.id, false) } }
@@ -298,19 +301,13 @@ fun SourcesPanel(
     val layerSelected = selected as? SourceItem.Layer
     Column(modifier) {
         DockHeader(stringResource(R.string.dock_sources, scene.name)) {
+            // Aksi hapus & urutan hanya muncul setelah layer dipilih.
+            if (layerSelected != null) {
+                DockIcon(Icons.Outlined.KeyboardArrowUp, stringResource(R.string.action_move_up)) { onMove(layerSelected.layer.id, true) }
+                DockIcon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.action_move_down)) { onMove(layerSelected.layer.id, false) }
+                DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete)) { onDelete(layerSelected.layer.id) }
+            }
             DockIcon(Icons.Outlined.Add, stringResource(R.string.dock_add_source), onClick = onAdd)
-            DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete), enabled = layerSelected != null) {
-                layerSelected?.let { onDelete(it.layer.id) }
-            }
-            DockIcon(Icons.Outlined.Settings, stringResource(R.string.dock_properties), enabled = selected != null) {
-                selected?.let(onProperties)
-            }
-            DockIcon(Icons.Outlined.KeyboardArrowUp, stringResource(R.string.action_move_up), enabled = layerSelected != null) {
-                layerSelected?.let { onMove(it.layer.id, true) }
-            }
-            DockIcon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.action_move_down), enabled = layerSelected != null) {
-                layerSelected?.let { onMove(it.layer.id, false) }
-            }
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
             items(items, key = { it.key }) { item ->
@@ -435,7 +432,6 @@ fun ControlsPanel(
     val s = engine.settings
     val locked = engine.isActive || engine.recording
     Column(modifier) {
-        DockHeader(stringResource(R.string.dock_controls))
         Column(
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Dimens.S2),
         ) {
@@ -463,8 +459,9 @@ fun ControlsPanel(
             }
 
             SectionHeader(stringResource(R.string.quick_section_video), trailing = if (locked) stringResource(R.string.quick_locked_live) else null)
-            ScrollPills(Resolution.entries.map { it.label }, s.resolution.ordinal, { i ->
-                val r = Resolution.entries[i]
+            val resolutions = com.yuklive.app.core.device.EncoderSupport.supportedResolutions()
+            ScrollPills(resolutions.map { it.label }, resolutions.indexOf(s.resolution).coerceAtLeast(0), { i ->
+                val r = resolutions[i]
                 onUpdateSettings { it.copy(resolution = r, videoBitrateKbps = StreamSettings.recommendedBitrate(r, it.fps)) }
             }, enabled = !locked)
             Spacer(Modifier.height(Dimens.S1))
@@ -552,6 +549,58 @@ fun StudioFooter(
                 height = 52.dp,
                 modifier = Modifier.weight(1f),
             )
+        }
+    }
+}
+
+// =============================================================== Chip scene (portrait)
+
+/** Pindah scene sekali tap tepat di bawah panggung. */
+@Composable
+fun SceneChips(
+    scenes: List<Scene>,
+    programId: String,
+    editingId: String,
+    studioMode: Boolean,
+    isLive: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = Dimens.S2, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.S1),
+    ) {
+        scenes.forEach { s ->
+            val isProgram = s.id == programId
+            val isPreview = studioMode && s.id == editingId && !isProgram
+            val border = when {
+                isProgram && isLive -> YukColors.Live
+                isProgram -> YukColors.TextPrimary
+                isPreview -> YukColors.Success
+                else -> YukColors.BorderStrong
+            }
+            Row(
+                Modifier
+                    .height(32.dp)
+                    .background(if (isProgram) YukColors.TextPrimary else YukColors.Black, PillShape)
+                    .border(1.dp, border, PillShape)
+                    .clickable { onSelect(s.id) }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isProgram && isLive) {
+                    BlinkingDot(YukColors.Live, 6.dp)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    s.name.uppercase(),
+                    style = YukType.LabelSmall,
+                    color = if (isProgram) YukColors.Black else YukColors.TextPrimary,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

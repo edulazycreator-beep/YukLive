@@ -339,7 +339,6 @@
     <string name="add_section_video">Scene video source</string>
     <string name="dock_add_source">Add source</string>
     <string name="dock_audio">Audio mixer</string>
-    <string name="dock_controls">Controls</string>
     <string name="dock_master_mute">Mute all</string>
     <string name="dock_properties">Properties</string>
     <string name="dock_record_with_live">Record automatically when live</string>
@@ -362,9 +361,26 @@
     <string name="status_ready">Ready</string>
     <string name="studio_mode">Studio Mode</string>
     <string name="studio_mode_hint">Prepare a scene in PREVIEW, then tap TRANSITION to put it on PROGRAM.</string>
-    <string name="studio_preview_label">Preview · %1$s</string>
-    <string name="studio_program">Program</string>
-    <string name="studio_transition">Transition</string>
+    <string name="studio_preview_label">PVW · %1$s</string>
     <string name="tag_preview">Preview</string>
     <string name="tag_program">Program</string>
+
+    <!-- Rapikan UI -->
+    <string name="home_active">Active</string>
+    <string name="home_open_studio">Open Studio</string>
+    <string name="home_ready_battery">Battery</string>
+    <string name="home_ready_camera">Camera</string>
+    <string name="home_ready_camera_value">%1$d lenses</string>
+    <string name="home_ready_destination">Destination</string>
+    <string name="home_ready_destination_none">None yet</string>
+    <string name="home_ready_internet">Internet</string>
+    <string name="home_ready_offline">Offline</string>
+    <string name="home_ready_online">Connected</string>
+    <string name="home_section_ready">Readiness</string>
+    <string name="home_selected">Selected</string>
+    <string name="settings_bitrate_hint">Recommended %1$d kbps · about %2$s of data per hour</string>
+    <string name="settings_use_recommended">Use recommended</string>
+    <string name="studio_program_short">PGM</string>
+    <string name="studio_transition_type">Transition · %1$s</string>
+    <string name="subtitle_preview_placeholder">Subtitle preview appears here</string>
 </resources>

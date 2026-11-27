@@ -137,8 +137,18 @@ private fun StudioContent(
     val programScene = doc.activeScene
     val outputRatio = engine.settings.outputWidth.toFloat() / engine.settings.outputHeight
     val items = scenes.sourceItems(editingScene)
+    val lensName = cam.selected?.let {
+        stringResource(
+            when (it.kind) {
+                com.yuklive.app.video.LensKind.Back -> R.string.lens_back
+                com.yuklive.app.video.LensKind.UltraWide -> R.string.lens_ultrawide
+                com.yuklive.app.video.LensKind.Tele -> R.string.lens_tele
+                com.yuklive.app.video.LensKind.Front -> R.string.lens_front
+            },
+        )
+    }
     val videoStatus = when (editingScene.source) {
-        SourceKind.Camera -> null
+        SourceKind.Camera -> listOfNotNull(lensName, engine.settings.resolution.label, "${engine.settings.fps} fps").joinToString(" · ")
         SourceKind.Usb -> stringResource(if (uvc.status == UvcStatus.Ready) R.string.status_ready else R.string.status_not_ready)
         SourceKind.Wifi -> stringResource(if (net.status == NetworkStatus.Playing) R.string.status_ready else R.string.status_not_ready)
     }
@@ -167,6 +177,10 @@ private fun StudioContent(
                 onFocus = { v, x, y -> vm.focusAt(v, x, y) },
                 onZoom = vm::zoomBy,
                 onTransition = scenes::transition,
+                transitionLabel = stringResource(
+                    R.string.studio_transition_type,
+                    stringResource(if (engine.settings.transition == com.yuklive.app.core.settings.TransitionType.Fade) R.string.transition_fade else R.string.transition_cut),
+                ),
                 modifier = Modifier.fillMaxSize(),
             )
             Banners(engine.phase, engine.online, isLive, engine.throttled, message, { message = null },
@@ -265,8 +279,16 @@ private fun StudioContent(
         } else {
             Column(Modifier.fillMaxSize()) {
                 StudioStatusBar(engine, stats, elapsed, onExit)
-                val stageHeight = if (studioMode) boxH * 0.5f else min(boxW / outputRatio, boxH * 0.5f)
+                val stageHeight = if (studioMode) boxH * 0.46f else min(boxW / outputRatio, boxH * 0.52f)
                 stage(Modifier.fillMaxWidth().height(stageHeight), false)
+                SceneChips(
+                    scenes = doc.scenes,
+                    programId = programScene.id,
+                    editingId = editingScene.id,
+                    studioMode = studioMode,
+                    isLive = isLive,
+                    onSelect = scenes::selectScene,
+                )
                 HairlineDivider()
                 DockTabs(DockTab.entries, tab, { tab = it }, tabLabels)
                 Box(Modifier.weight(1f).fillMaxWidth()) {

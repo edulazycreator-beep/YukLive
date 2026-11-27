@@ -39,6 +39,22 @@ import com.yuklive.app.ui.components.PillToggle
 import com.yuklive.app.ui.components.RowGroup
 import com.yuklive.app.ui.components.SectionHeader
 import com.yuklive.app.ui.components.StatusBadge
+import com.yuklive.app.ui.components.PillVariant
+import com.yuklive.app.ui.components.YukLabel
+import com.yuklive.app.core.device.DeviceStatus
+import com.yuklive.app.core.device.DeviceStatusMonitor
+import com.yuklive.app.video.CameraController
+import com.yuklive.app.video.UvcState
+import com.yuklive.app.video.UvcStatus
+import com.yuklive.app.video.UvcVideoSource
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Color
+import com.yuklive.app.ui.theme.PillShape
 import com.yuklive.app.ui.theme.Dimens
 import com.yuklive.app.ui.theme.YukColors
 import com.yuklive.app.ui.theme.YukType
@@ -55,7 +71,17 @@ class HomeViewModel @Inject constructor(
     liveSession: LiveSessionRepository,
     private val destinations: DestinationRepository,
     private val overlay: OverlayRepository,
+    device: DeviceStatusMonitor,
+    camera: CameraController,
+    uvc: UvcVideoSource,
 ) : ViewModel() {
+    val deviceStatus: StateFlow<DeviceStatus> = device.status
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DeviceStatus())
+    val online: StateFlow<Boolean> = device.online
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val cameraCount: Int = camera.state.value.lenses.size
+    val usbState: StateFlow<UvcState> = uvc.state
+
     val isLive: StateFlow<Boolean> = liveSession.state
         .map { it.isLive }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -119,6 +145,23 @@ fun HomeScreen(
                     height = 64.dp,
                     leading = { BlinkingDot(color = YukColors.Live, size = 10.dp) },
                 )
+            } else if (dests.destinations.isEmpty()) {
+                // Belum ada tujuan: langkah pertama yang benar adalah menambah tujuan.
+                PillButton(
+                    text = stringResource(R.string.home_destinations_add),
+                    onClick = onOpenDestinations,
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 64.dp,
+                    icon = Icons.Outlined.Add,
+                )
+                Spacer(Modifier.height(Dimens.S1))
+                PillButton(
+                    text = stringResource(R.string.home_open_studio),
+                    onClick = onOpenStudio,
+                    modifier = Modifier.fillMaxWidth(),
+                    variant = PillVariant.Secondary,
+                    icon = Icons.Outlined.Videocam,
+                )
             } else {
                 PillButton(
                     text = stringResource(R.string.home_start_live),
@@ -126,6 +169,44 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     height = 64.dp,
                     icon = Icons.Outlined.Videocam,
+                )
+            }
+        }
+
+        item {
+            SectionHeader(stringResource(R.string.home_section_ready))
+            val d by viewModel.deviceStatus.collectAsStateWithLifecycle()
+            val online by viewModel.online.collectAsStateWithLifecycle()
+            val usb by viewModel.usbState.collectAsStateWithLifecycle()
+            RowGroup {
+                ReadyRow(
+                    stringResource(R.string.home_ready_destination),
+                    dests.selected?.name ?: stringResource(R.string.home_ready_destination_none),
+                    if (dests.selected != null) YukColors.Success else YukColors.Warning,
+                )
+                HairlineDivider()
+                ReadyRow(
+                    stringResource(R.string.home_ready_internet),
+                    stringResource(if (online) R.string.home_ready_online else R.string.home_ready_offline),
+                    if (online) YukColors.Success else YukColors.Live,
+                )
+                HairlineDivider()
+                ReadyRow(
+                    stringResource(R.string.home_ready_camera),
+                    stringResource(R.string.home_ready_camera_value, viewModel.cameraCount) +
+                        if (usb.status == UvcStatus.Ready) " · USB" else "",
+                    if (viewModel.cameraCount > 0 || usb.status == UvcStatus.Ready) YukColors.Success else YukColors.Warning,
+                )
+                HairlineDivider()
+                val batt = d.batteryPercent?.let { "$it%" } ?: "—"
+                val temp = d.temperatureC?.let { " · ${it.toInt()}°C" } ?: ""
+                ReadyRow(
+                    stringResource(R.string.home_ready_battery),
+                    batt + temp,
+                    when {
+                        d.isHot || d.isBatteryLow -> YukColors.Warning
+                        else -> YukColors.Success
+                    },
                 )
             }
         }
@@ -147,7 +228,9 @@ fun HomeScreen(
                             title = d.name,
                             subtitle = "${d.platform.displayName} · ${d.platform.protocolLabel}",
                             onClick = { viewModel.selectDestination(d.id) },
-                            trailing = { PillToggle(d.id == dests.selected?.id, { viewModel.selectDestination(d.id) }) },
+                            trailing = {
+                                if (d.id == dests.selected?.id) YukLabel(stringResource(R.string.home_selected), color = YukColors.Success)
+                            },
                         )
                     }
                     HairlineDivider()
@@ -166,7 +249,9 @@ fun HomeScreen(
                         subtitle = stringResource(R.string.home_scene_layers, s.layers.size),
                         icon = Icons.Outlined.Layers,
                         onClick = { viewModel.activateScene(s.id) },
-                        trailing = { PillToggle(s.id == doc.activeScene.id, { viewModel.activateScene(s.id) }) },
+                        trailing = {
+                            if (s.id == doc.activeScene.id) YukLabel(stringResource(R.string.home_active), color = YukColors.TextPrimary)
+                        },
                     )
                 }
                 HairlineDivider()
@@ -195,5 +280,18 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(Dimens.S3))
         }
+    }
+}
+
+@Composable
+private fun ReadyRow(label: String, value: String, color: Color) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Dimens.S2, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(8.dp).background(color, PillShape))
+        Spacer(Modifier.width(Dimens.S2))
+        Text(label, style = YukType.Body, color = YukColors.TextSecondary, modifier = Modifier.weight(1f))
+        Text(value, style = YukType.Body, color = YukColors.TextPrimary, maxLines = 1)
     }
 }

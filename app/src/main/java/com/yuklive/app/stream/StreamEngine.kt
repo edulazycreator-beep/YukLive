@@ -205,11 +205,17 @@ class StreamEngine @Inject constructor(
     // ---------------------------------------------------------------- Preview
 
     fun attachPreview(view: SurfaceView) {
+        val old = previewView
         previewView = view
         uvc.startMonitoring()
         val s = ensureStream()
         if (preparedWith == null && !prepare(_state.value.settings)) return
         runCatching {
+            // Layar preview diganti (mis. Studio Mode dinyalakan): lepas yang lama dulu.
+            if (s.isOnPreview && old != null && old !== view) {
+                s.stopPreview(true)
+                if (!isBusy()) camera.onClosed()
+            }
             if (!s.isOnPreview) {
                 ensureOverlayFilter(s)
                 s.startPreview(view, true)

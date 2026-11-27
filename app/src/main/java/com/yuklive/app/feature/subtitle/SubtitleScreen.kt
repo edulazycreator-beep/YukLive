@@ -98,15 +98,17 @@ fun SubtitleScreen(onBack: () -> Unit, viewModel: SubtitleViewModel = hiltViewMo
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(title = stringResource(R.string.screen_subtitle), onBack = onBack)
+        // Preview menempel di atas supaya efek setiap perubahan langsung terlihat.
+        SubtitlePreview(viewModel, Modifier.padding(horizontal = Dimens.ScreenPadding))
+        Spacer(Modifier.height(Dimens.S1))
+        HairlineDivider()
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Dimens.ScreenPadding),
         ) {
-            // ---------------- Preview
-            SubtitlePreview(viewModel)
-            Spacer(Modifier.height(Dimens.S1))
+            Spacer(Modifier.height(Dimens.S2))
             var testText by rememberSaveable { mutableStateOf("") }
             val sample = stringResource(R.string.subtitle_sample)
             YukTextField(testText, { testText = it }, placeholder = sample, label = stringResource(R.string.subtitle_manual_text))
@@ -291,19 +293,27 @@ private fun recognizerText(status: RecognizerStatus, error: String?): String = w
 
 /** Preview subtitle memakai renderer yang sama dengan stream. */
 @Composable
-private fun SubtitlePreview(viewModel: SubtitleViewModel) {
+private fun SubtitlePreview(viewModel: SubtitleViewModel, modifier: Modifier = Modifier) {
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     LaunchedEffect(Unit) { while (true) withFrameMillis { now = SystemClock.elapsedRealtime() } }
+    val placeholder = stringResource(R.string.subtitle_preview_placeholder).split(" ")
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f)
+            .height(170.dp)
             .background(YukColors.Surface)
             .border(Dimens.Hairline, YukColors.Border),
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val t = now
-            val frame = viewModel.previewFrame()
+            var frame = viewModel.previewFrame()
+            if (frame.words.isEmpty()) {
+                // Saat diam: tampilkan contoh samar supaya gaya tetap terlihat.
+                frame = frame.copy(
+                    words = placeholder.map { com.yuklive.app.subtitle.DisplayWord(it, 0L) },
+                    style = frame.style.copy(opacity = frame.style.opacity * 0.35f),
+                )
+            }
             drawIntoCanvas { c -> viewModel.renderer.draw(c.nativeCanvas, size.width, size.height, frame, t) }
         }
     }

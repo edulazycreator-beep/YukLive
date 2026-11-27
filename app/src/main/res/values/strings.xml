@@ -344,7 +344,6 @@
     <string name="add_section_video">Sumber video scene</string>
     <string name="dock_add_source">Tambah source</string>
     <string name="dock_audio">Mixer audio</string>
-    <string name="dock_controls">Kontrol</string>
     <string name="dock_master_mute">Bisukan semua</string>
     <string name="dock_properties">Properti</string>
     <string name="dock_record_with_live">Rekam otomatis saat live</string>
@@ -367,9 +366,26 @@
     <string name="status_ready">Siap</string>
     <string name="studio_mode">Studio Mode</string>
     <string name="studio_mode_hint">Siapkan scene di PREVIEW, lalu tekan TRANSISI untuk menayangkannya ke PROGRAM.</string>
-    <string name="studio_preview_label">Preview · %1$s</string>
-    <string name="studio_program">Program</string>
-    <string name="studio_transition">Transisi</string>
+    <string name="studio_preview_label">PVW · %1$s</string>
     <string name="tag_preview">Preview</string>
     <string name="tag_program">Program</string>
+
+    <!-- Rapikan UI -->
+    <string name="home_active">Aktif</string>
+    <string name="home_open_studio">Buka Studio</string>
+    <string name="home_ready_battery">Baterai</string>
+    <string name="home_ready_camera">Kamera</string>
+    <string name="home_ready_camera_value">%1$d lensa</string>
+    <string name="home_ready_destination">Tujuan</string>
+    <string name="home_ready_destination_none">Belum ada</string>
+    <string name="home_ready_internet">Internet</string>
+    <string name="home_ready_offline">Terputus</string>
+    <string name="home_ready_online">Tersambung</string>
+    <string name="home_section_ready">Kesiapan</string>
+    <string name="home_selected">Dipilih</string>
+    <string name="settings_bitrate_hint">Disarankan %1$d kbps · kuota ±%2$s per jam</string>
+    <string name="settings_use_recommended">Pakai saran</string>
+    <string name="studio_program_short">PGM</string>
+    <string name="studio_transition_type">Transisi · %1$s</string>
+    <string name="subtitle_preview_placeholder">Contoh subtitle tampil di sini</string>
 </resources>

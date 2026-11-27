@@ -40,6 +40,7 @@ import com.yuklive.app.ui.theme.Motion
 import com.yuklive.app.ui.theme.PillShape
 import com.yuklive.app.ui.theme.YukColors
 import com.yuklive.app.ui.theme.YukType
+import androidx.compose.ui.unit.sp
 
 /** Toggle pill kecil: abu saat off, putih saat on. */
 @Composable
@@ -182,7 +183,7 @@ fun SegmentedPills(
             }
             Box(
                 modifier = Modifier
-                    .height(36.dp)
+                    .height(32.dp)
                     .clip(PillShape)
                     .background(bg)
                     .border(1.dp, if (selected && enabled) YukColors.TextPrimary else YukColors.BorderStrong, PillShape)
@@ -192,10 +193,10 @@ fun SegmentedPills(
                         enabled = enabled,
                         role = Role.RadioButton,
                     ) { onSelect(index) }
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label.uppercase(), style = YukType.Label, color = fg)
+                Text(label.uppercase(), style = YukType.LabelSmall.copy(fontSize = 11.sp), color = fg)
             }
         }
     }
