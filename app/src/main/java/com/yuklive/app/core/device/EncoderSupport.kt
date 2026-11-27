@@ -15,6 +15,7 @@ object EncoderSupport {
                 .filter { it.isEncoder && it.supportedTypes.any { t -> t.equals(MediaFormat.MIMETYPE_VIDEO_AVC, true) } }
                 .any { info ->
                     val caps = info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).videoCapabilities
+                        ?: return@any false
                     caps.isSizeSupported(resolution.width, resolution.height) &&
                         caps.areSizeAndRateSupported(resolution.width, resolution.height, fps.toDouble())
                 }
