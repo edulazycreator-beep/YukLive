@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class OverlayFilterRender(
     private val onRelease: (Bitmap) -> Unit,
+    /** Dipanggil saat filter belum punya gambar (mis. setelah pipeline GL dibuat ulang). */
+    private val onNeedFrame: () -> Unit = {},
 ) : BaseObjectFilterRender() {
 
     private val pending = AtomicReference<Bitmap?>(null)
@@ -46,6 +48,7 @@ class OverlayFilterRender(
             }
             onRelease(bmp)
         }
+        if (textureId[0] == -1) onNeedFrame()
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId[0])
         GLES20.glUniform1f(uAlphaHandle, if (textureId[0] == -1) 0f else 1f)
     }

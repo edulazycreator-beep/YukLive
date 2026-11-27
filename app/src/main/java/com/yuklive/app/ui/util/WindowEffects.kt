@@ -3,6 +3,7 @@ package com.yuklive.app.ui.util
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalView
@@ -45,6 +46,24 @@ fun ImmersiveMode(enabled: Boolean) {
         onDispose {
             controller?.show(WindowInsetsCompat.Type.systemBars())
         }
+    }
+}
+
+/**
+ * Kunci orientasi layar selama Studio terbuka supaya gambar kamera selalu tegak
+ * dan sesuai bingkai stream (landscape 16:9 / portrait 9:16), tidak gepeng.
+ */
+@Composable
+fun LockOrientation(portrait: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(view, portrait) {
+        val activity = view.context.findActivity()
+        activity?.requestedOrientation = if (portrait) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+        onDispose { activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
     }
 }
 

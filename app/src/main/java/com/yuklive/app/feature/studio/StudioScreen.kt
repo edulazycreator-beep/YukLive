@@ -53,6 +53,8 @@ import com.yuklive.app.ui.theme.YukColors
 import com.yuklive.app.ui.theme.YukType
 import com.yuklive.app.ui.util.ImmersiveMode
 import com.yuklive.app.ui.util.KeepScreenOn
+import com.yuklive.app.ui.util.LockOrientation
+import com.yuklive.app.core.settings.StreamOrientation
 import com.yuklive.app.video.UvcStatus
 import com.yuklive.app.video.network.NetworkStatus
 import kotlinx.coroutines.delay
@@ -117,6 +119,7 @@ private fun StudioContent(
 
     val isLive = engine.isActive
     KeepScreenOn(enabled = isLive || engine.recording)
+    LockOrientation(portrait = engine.settings.orientation == StreamOrientation.Portrait)
     ImmersiveMode(enabled = isLive)
 
     DisposableEffect(Unit) {

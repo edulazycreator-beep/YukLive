@@ -210,7 +210,10 @@ class StreamEngine @Inject constructor(
         val s = ensureStream()
         if (preparedWith == null && !prepare(_state.value.settings)) return
         runCatching {
-            if (!s.isOnPreview) s.startPreview(view, true)
+            if (!s.isOnPreview) {
+                ensureOverlayFilter(s)
+                s.startPreview(view, true)
+            }
             compositor.start()
             _state.update { it.copy(previewing = true) }
             if (_state.value.source == SourceKind.Camera) scope.launch {
@@ -254,6 +257,7 @@ class StreamEngine @Inject constructor(
         compositor.start()
         runCatching {
             s.getStreamClient().setReTries(MAX_RETRIES)
+            ensureOverlayFilter(s)
             s.startStream(url)
             if (settings.recordLocally && !s.isRecording) startRecording(s)
         }.onFailure {
@@ -354,6 +358,7 @@ class StreamEngine @Inject constructor(
             return
         }
         if (preparedWith == null && !prepare(_state.value.settings)) return
+        ensureOverlayFilter(s)
         compositor.start()
         startRecording(s)
         updateService()
@@ -453,11 +458,22 @@ class StreamEngine @Inject constructor(
     private fun ensureStream(): GenericStream {
         stream?.let { return it }
         val s = GenericStream(context, this, sourceFor(_state.value.source), mixer)
-        s.getGlInterface().addFilter(compositor.filter)
         s.getGlInterface().setAspectRatioMode(AspectRatioMode.Adjust)
         s.setFpsListener { fps -> _stats.update { it.copy(fps = fps) } }
         stream = s
         return s
+    }
+
+    /**
+     * RootEncoder menghapus semua filter saat pipeline GL berhenti (stopPreview tanpa live/rekam).
+     * Jadi filter overlay dipasang ulang setiap kali GL akan dinyalakan lagi.
+     */
+    private fun ensureOverlayFilter(s: GenericStream) {
+        val gl = s.getGlInterface()
+        if (gl.isRunning()) return
+        gl.clearFilters()
+        gl.addFilter(compositor.filter)
+        compositor.invalidate()
     }
 
     private fun reprepareIfNeeded(settings: StreamSettings) {
@@ -467,7 +483,10 @@ class StreamEngine @Inject constructor(
         val wasPreview = s.isOnPreview
         if (wasPreview) runCatching { s.stopPreview(true) }
         if (prepare(settings) && wasPreview && view != null) {
-            runCatching { s.startPreview(view, true) }
+            runCatching {
+                ensureOverlayFilter(s)
+                s.startPreview(view, true)
+            }
             if (_state.value.source == SourceKind.Camera) scope.launch {
                 delay(600)
                 camera.applySelectedLens()

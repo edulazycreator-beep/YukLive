@@ -30,7 +30,10 @@ class StreamCompositor @Inject constructor(
     private val subtitleRenderer: SubtitleRenderer,
 ) {
     private val pool = ArrayBlockingQueue<Bitmap>(POOL_SIZE)
-    val filter = OverlayFilterRender(onRelease = { bmp -> if (bmp.width == width && bmp.height == height) pool.offer(bmp) })
+    val filter = OverlayFilterRender(
+        onRelease = { bmp -> if (bmp.width == width && bmp.height == height) pool.offer(bmp) },
+        onNeedFrame = { forceRedraw = true },
+    )
 
     @Volatile private var width = 1280
     @Volatile private var height = 720
