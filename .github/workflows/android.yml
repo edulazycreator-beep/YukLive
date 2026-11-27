@@ -28,7 +28,7 @@ jobs:
           java-version: "17"
 
       - name: Siapkan Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Siapkan Gradle (dengan cache)
         uses: gradle/actions/setup-gradle@v5
