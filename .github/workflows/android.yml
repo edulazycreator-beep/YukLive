@@ -58,14 +58,14 @@ jobs:
           ./gradlew assembleDebug assembleRelease --stacktrace
 
       - name: Upload APK debug
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: YukLive-debug-${{ github.run_number }}
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
       - name: Upload APK release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: YukLive-release-${{ github.run_number }}
           path: app/build/outputs/apk/release/*.apk
