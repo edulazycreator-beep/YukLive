@@ -1,0 +1,16 @@
+# Cek versi library & GitHub Actions terbaru tiap minggu.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      androidx:
+        patterns: [ "androidx.*" ]
+      kotlin:
+        patterns: [ "org.jetbrains.kotlin*", "com.google.devtools.ksp" ]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

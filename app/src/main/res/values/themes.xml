@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema XML minimal: semua tampilan digambar Compose (YukLiveTheme). -->
+    <style name="Theme.YukLive" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/yuk_black</item>
+        <item name="colorPrimary">@color/yuk_white</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

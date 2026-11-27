@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kelas USB Video (UVC) = 14 (0x0E). Capture card HDMI umumnya UVC.
+     Kelas 239 (Miscellaneous/IAD) dipakai banyak capture card gabungan video+audio. -->
+<resources>
+    <usb-device class="14" />
+    <usb-device class="239" subclass="2" />
+</resources>
