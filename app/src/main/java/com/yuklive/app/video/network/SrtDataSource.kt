@@ -54,7 +54,7 @@ class SrtDataSource : BaseDataSource(/* isNetwork = */ true) {
                 srv.configure(latency, passphrase, null)
                 srv.bind(InetSocketAddress("0.0.0.0", port))
                 srv.listen(1)
-                val (client, _) = srv.accept() // menunggu HP lain menyambung
+                val client = srv.accept().first // menunggu HP lain menyambung
                 if (closed) throw IOException("closed")
                 socket = client
             } else {
