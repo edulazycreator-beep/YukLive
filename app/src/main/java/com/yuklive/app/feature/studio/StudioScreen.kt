@@ -229,6 +229,8 @@ private fun StudioContent(
             .navigationBarsPadding(),
     ) {
         val landscape = maxWidth > maxHeight
+        val boxW = maxWidth
+        val boxH = maxHeight
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -236,7 +238,7 @@ private fun StudioContent(
                     stage(Modifier.weight(1f).fillMaxWidth(), true)
                 }
                 Box(Modifier.width(1.dp).fillMaxHeight().background(YukColors.Border))
-                Column(Modifier.width(min(360.dp, maxWidth * 0.4f)).fillMaxHeight()) {
+                Column(Modifier.width(min(360.dp, boxW * 0.4f)).fillMaxHeight()) {
                     // Landscape: Scene + Source digabung di satu tab (seperti dock OBS).
                     val landscapeTab = if (tab == DockTab.Scenes) DockTab.Sources else tab
                     DockTabs(
@@ -260,7 +262,7 @@ private fun StudioContent(
         } else {
             Column(Modifier.fillMaxSize()) {
                 StudioStatusBar(engine, stats, elapsed, onExit)
-                val stageHeight = if (studioMode) maxHeight * 0.5f else min(maxWidth / outputRatio, maxHeight * 0.5f)
+                val stageHeight = if (studioMode) boxH * 0.5f else min(boxW / outputRatio, boxH * 0.5f)
                 stage(Modifier.fillMaxWidth().height(stageHeight), false)
                 HairlineDivider()
                 DockTabs(DockTab.entries, tab, { tab = it }, tabLabels)
