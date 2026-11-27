@@ -86,6 +86,7 @@ data class EngineState(
     val source: SourceKind = SourceKind.Camera,
     val previewing: Boolean = false,
     val recording: Boolean = false,
+    val recordStartedAt: Long? = null,
     val settings: StreamSettings = StreamSettings(),
     val throttled: Boolean = false,
     val destinationName: String? = null,
@@ -193,7 +194,9 @@ class StreamEngine @Inject constructor(
                 if (scene.id != lastSceneId) {
                     val first = lastSceneId == null
                     lastSceneId = scene.id
-                    if (!first && scene.source != _state.value.source) switchSource(scene.source)
+                    if (!first && !sceneSwitchInProgress && scene.source != _state.value.source) {
+                        switchSource(scene.source, announce = false)
+                    }
                 }
             }
         }
@@ -247,12 +250,12 @@ class StreamEngine @Inject constructor(
         bitrateAdapter.setMaxBitrate(settings.videoBitrateKbps * 1000)
         bitrateAdapter.reset()
 
-        ContextCompat.startForegroundService(context, Intent(context, StreamService::class.java))
+        updateService()
         compositor.start()
         runCatching {
             s.getStreamClient().setReTries(MAX_RETRIES)
             s.startStream(url)
-            if (settings.recordLocally) startRecording(s)
+            if (settings.recordLocally && !s.isRecording) startRecording(s)
         }.onFailure {
             message(UiText.res(R.string.msg_start_failed, it.message.orEmpty()), UiMessage.Level.Error)
             cleanupAfterEnd()
@@ -264,7 +267,6 @@ class StreamEngine @Inject constructor(
         if (!_state.value.isActive) return
         userEnding = true
         countdownJob?.cancel()
-        runCatching { if (s.isRecording) s.stopRecord() }
         runCatching { if (s.isStreaming) s.stopStream() }
         cleanupAfterEnd()
         message(R.string.msg_live_ended, UiMessage.Level.Info)
@@ -275,17 +277,47 @@ class StreamEngine @Inject constructor(
         countdownJob?.cancel()
         liveSession.stop()
         compositor.liveStartedAt = null
-        context.stopService(Intent(context, StreamService::class.java))
-        _state.update { it.copy(phase = StreamPhase.Idle, recording = false, throttled = false) }
-        _stats.value = StreamStats()
-        if (previewView == null) {
-            compositor.stop()
-            camera.onClosed()
+        val stillRecording = stream?.isRecording == true
+        _state.update {
+            it.copy(
+                phase = StreamPhase.Idle,
+                recording = stillRecording,
+                recordStartedAt = if (stillRecording) it.recordStartedAt else null,
+                throttled = false,
+            )
         }
-        recordFile?.let { f -> scope.launch { publishRecording(f) } }
-        recordFile = null
-        // Pengaturan yang diubah selama live diterapkan sekarang.
-        reprepareIfNeeded(_state.value.settings)
+        _stats.value = StreamStats()
+        if (!stillRecording) {
+            recordFile?.let { f -> scope.launch { publishRecording(f) } }
+            recordFile = null
+        }
+        afterSessionChange()
+    }
+
+    /** Dipanggil setiap live/rekam berhenti: matikan service & compositor bila sudah tidak dipakai. */
+    private fun afterSessionChange() {
+        updateService()
+        if (!isBusy()) {
+            if (previewView == null) {
+                compositor.stop()
+                camera.onClosed()
+            }
+            // Pengaturan yang diubah selama live/rekam diterapkan sekarang.
+            reprepareIfNeeded(_state.value.settings)
+        }
+    }
+
+    private var serviceRunning = false
+
+    private fun updateService() {
+        val needed = _state.value.isActive || stream?.isRecording == true
+        if (needed && !serviceRunning) {
+            ContextCompat.startForegroundService(context, Intent(context, StreamService::class.java))
+            serviceRunning = true
+        } else if (!needed && serviceRunning) {
+            context.stopService(Intent(context, StreamService::class.java))
+            serviceRunning = false
+        }
     }
 
     /** Ubah bitrate saat live (slider di Studio). */
@@ -299,22 +331,37 @@ class StreamEngine @Inject constructor(
         }
     }
 
-    fun setRecording(on: Boolean) {
+    /** Dari notifikasi: akhiri live dan rekaman sekaligus. */
+    fun stopAll() {
+        endLive()
+        if (stream?.isRecording == true) toggleRecording()
+    }
+
+    /** Rekam otomatis setiap GO LIVE (pengaturan). */
+    fun setRecordWithLive(on: Boolean) {
         scope.launch { settingsRepo.update { it.copy(recordLocally = on) } }
-        val s = stream ?: return
-        if (!_state.value.isActive) return
-        if (on && !s.isRecording) startRecording(s)
-        if (!on && s.isRecording) {
+    }
+
+    /** Tombol REC: mulai/berhenti merekam, terlepas dari live (seperti OBS). */
+    fun toggleRecording() {
+        val s = ensureStream()
+        if (s.isRecording) {
             runCatching { s.stopRecord() }
-            _state.update { it.copy(recording = false) }
+            _state.update { it.copy(recording = false, recordStartedAt = null) }
             recordFile?.let { f -> scope.launch { publishRecording(f) } }
             recordFile = null
+            afterSessionChange()
+            return
         }
+        if (preparedWith == null && !prepare(_state.value.settings)) return
+        compositor.start()
+        startRecording(s)
+        updateService()
     }
 
     // ---------------------------------------------------------------- Sumber & scene
 
-    fun switchSource(kind: SourceKind, announce: Boolean = true) {
+    fun switchSource(kind: SourceKind, announce: Boolean = true, allowFade: Boolean = true) {
         val current = _state.value.source
         if (kind == current || _state.value.switching) return
         if (kind == SourceKind.Usb && !uvc.isReady) {
@@ -327,7 +374,7 @@ class StreamEngine @Inject constructor(
             stream?.let { st -> runCatching { st.changeVideoSource(sourceFor(kind)) } }
             return
         }
-        val fade = _state.value.settings.transition == TransitionType.Fade && (s.isOnPreview || s.isStreaming)
+        val fade = allowFade && _state.value.settings.transition == TransitionType.Fade && (s.isOnPreview || s.isStreaming)
         _state.update { it.copy(switching = true) }
         scope.launch {
             if (fade) {
@@ -352,9 +399,39 @@ class StreamEngine @Inject constructor(
         }
     }
 
-    fun applyScene(scene: Scene) {
-        overlayRepo.setActiveScene(scene.id)
+    fun applyScene(scene: Scene) = transitionToScene(scene.id)
+
+    /**
+     * Pindahkan scene ke PROGRAM (yang tayang). Fade menutupi pergantian sumber video
+     * sekaligus overlay, seperti tombol Transition di OBS.
+     */
+    fun transitionToScene(sceneId: String) {
+        val doc = overlayRepo.document.value
+        val target = doc.scenes.firstOrNull { it.id == sceneId } ?: return
+        if (doc.activeScene.id == sceneId || _state.value.switching) return
+        val fade = _state.value.settings.transition == TransitionType.Fade && _state.value.previewing
+        if (!fade) {
+            sceneSwitchInProgress = true
+            overlayRepo.setActiveScene(sceneId)
+            if (target.source != _state.value.source) switchSource(target.source, allowFade = false)
+            sceneSwitchInProgress = false
+            return
+        }
+        scope.launch {
+            compositor.fade(1f, FADE_MS)
+            delay(FADE_MS)
+            sceneSwitchInProgress = true
+            overlayRepo.setActiveScene(sceneId)
+            if (target.source != _state.value.source) {
+                switchSource(target.source, allowFade = false)
+                delay(150)
+            }
+            sceneSwitchInProgress = false
+            compositor.fade(0f, FADE_MS)
+        }
     }
+
+    private var sceneSwitchInProgress = false
 
     fun setOverlayEnabled(enabled: Boolean) {
         compositor.overlayEnabled = enabled
@@ -458,7 +535,7 @@ class StreamEngine @Inject constructor(
                 }
             }
             recordFile = file
-            _state.update { it.copy(recording = true) }
+            _state.update { it.copy(recording = true, recordStartedAt = SystemClock.elapsedRealtime()) }
         }.onFailure { message(R.string.msg_record_failed, UiMessage.Level.Error) }
     }
 
@@ -543,7 +620,6 @@ class StreamEngine @Inject constructor(
             if (canRetry) {
                 startCountdown(reconnectAttempt)
             } else {
-                runCatching { if (s.isRecording) s.stopRecord() }
                 runCatching { s.stopStream() }
                 cleanupAfterEnd()
                 message(UiText.res(R.string.msg_connection_failed, friendlyReason(reason)), UiMessage.Level.Error)
@@ -557,7 +633,6 @@ class StreamEngine @Inject constructor(
         scope.launch {
             val s = stream ?: return@launch
             userEnding = true
-            runCatching { if (s.isRecording) s.stopRecord() }
             runCatching { s.stopStream() }
             cleanupAfterEnd()
             message(R.string.msg_auth_error, UiMessage.Level.Error)

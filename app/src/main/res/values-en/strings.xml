@@ -3,13 +3,11 @@
     <!-- Navigation -->
     <string name="tab_home">Home</string>
     <string name="tab_studio">Studio</string>
-    <string name="tab_overlay">Overlay</string>
     <string name="tab_settings">Settings</string>
 
     <string name="screen_sources">Video Sources</string>
     <string name="screen_subtitle">Live Subtitles</string>
     <string name="screen_destinations">Stream Destinations</string>
-    <string name="screen_overlay">Overlay &amp; Scenes</string>
     <string name="screen_settings">Settings</string>
 
     <!-- Common actions -->
@@ -33,7 +31,7 @@
     <string name="home_destinations_empty_body">Add YouTube, Facebook, TikTok, Twitch, Instagram, or your own RTMP/SRT server.</string>
     <string name="home_destinations_add">Add Destination</string>
     <string name="home_section_scenes">Recent Scenes</string>
-    <string name="home_scenes_open_overlay">Open Overlay</string>
+    <string name="home_scenes_open_overlay">Manage scenes in Studio</string>
     <string name="home_section_tools">Tools</string>
     <string name="home_tools_sources_desc">Phone camera, USB capture card, Wi-Fi</string>
     <string name="home_tools_subtitle_desc">Automatic captions from the broadcast audio</string>
@@ -42,25 +40,12 @@
     <string name="studio_bitrate_value">%1$d kbps</string>
     <string name="studio_temp_value">%1$d°C</string>
     <string name="studio_battery_value">%1$d%%</string>
-    <string name="studio_toggle_subtitle">Subtitles</string>
-    <string name="studio_mute">Mute</string>
-    <string name="studio_unmute">Unmute</string>
-    <string name="studio_toggle_overlay">Overlay</string>
-    <string name="studio_quick_settings">Quick Settings</string>
-    <string name="source_camera">Camera</string>
-    <string name="source_usb">USB</string>
-    <string name="source_wifi">Wi-Fi</string>
     <string name="quick_section_video">Resolution</string>
 
     <string name="end_live_title">End the broadcast?</string>
     <string name="end_live_body">Viewers will no longer see your stream after this.</string>
 
     <!-- Overlay -->
-    <string name="overlay_section_layers">Layers</string>
-    <string name="overlay_layers_empty_title">No layers yet</string>
-    <string name="overlay_layers_empty_body">Text, PNG logos, lower-thirds, clock/timer, LIVE badge, and ticker.</string>
-    <string name="overlay_section_scenes">Scenes</string>
-    <string name="overlay_scene_count">%1$d/%2$d</string>
 
     <!-- Sources -->
     <string name="sources_camera">Phone camera</string>
@@ -218,12 +203,8 @@
     <string name="notif_title">YukLive is broadcasting</string>
     <string name="orientation_landscape">Landscape 16:9</string>
     <string name="orientation_portrait">Portrait 9:16</string>
-    <string name="overlay_add_layer">Add layer</string>
     <string name="overlay_add_scene">Add scene</string>
-    <string name="overlay_editor_hint">Tap a layer to select it. Drag to move, pinch to resize, twist two fingers to rotate.</string>
     <string name="overlay_scene_default_name">Scene %1$d</string>
-    <string name="overlay_scene_source">Source</string>
-    <string name="overlay_section_preview">Editor</string>
     <string name="overlay_section_properties">Properties · %1$s</string>
     <string name="perm_allow">Allow</string>
     <string name="perm_camera">Camera: to show and broadcast the phone camera.</string>
@@ -270,7 +251,6 @@
     <string name="quick_locked_live">Locked while live</string>
     <string name="quick_record">Record locally (MP4)</string>
     <string name="quick_record_hint">Save a copy of the stream to the gallery.</string>
-    <string name="quick_section_audio_mixer">Audio mixer</string>
     <string name="quick_section_camera">Camera</string>
     <string name="quick_section_transition">Source transition</string>
     <string name="quick_stabilization">Stabilization</string>
@@ -349,4 +329,42 @@
     <string name="wb_fluorescent">Fluorescent</string>
     <string name="wb_indoor">Indoor</string>
     <string name="wb_locked">Lock</string>
+
+    <!-- Studio mini OBS -->
+    <string name="action_move_down">Move down</string>
+    <string name="action_move_up">Move up</string>
+    <string name="action_record">Record</string>
+    <string name="add_current">Current</string>
+    <string name="add_section_overlay">Overlay</string>
+    <string name="add_section_video">Scene video source</string>
+    <string name="dock_add_source">Add source</string>
+    <string name="dock_audio">Audio mixer</string>
+    <string name="dock_controls">Controls</string>
+    <string name="dock_master_mute">Mute all</string>
+    <string name="dock_properties">Properties</string>
+    <string name="dock_record_with_live">Record automatically when live</string>
+    <string name="dock_scenes">Scenes %1$d/%2$d</string>
+    <string name="dock_sources">Sources · %1$s</string>
+    <string name="dock_tab_audio">Audio</string>
+    <string name="dock_tab_controls">Controls</string>
+    <string name="dock_tab_scene_source">Scenes &amp; Sources</string>
+    <string name="dock_tab_scenes">Scenes</string>
+    <string name="dock_tab_sources">Sources</string>
+    <string name="dock_toggle_lock">Lock position</string>
+    <string name="dock_toggle_visible">Show/hide</string>
+    <string name="notif_recording">Recording to MP4…</string>
+    <string name="props_not_program">This scene isn\'t on air yet. The controls below apply to the source currently in use.</string>
+    <string name="props_open_sources">Configure in Sources</string>
+    <string name="props_open_subtitle">All subtitle settings</string>
+    <string name="props_subtitle_hint">Subtitles appear on top of every scene.</string>
+    <string name="props_wifi_summary">Mode %1$s · %2$d kbps · buffer %3$d ms</string>
+    <string name="status_not_ready">Not ready</string>
+    <string name="status_ready">Ready</string>
+    <string name="studio_mode">Studio Mode</string>
+    <string name="studio_mode_hint">Prepare a scene in PREVIEW, then tap TRANSITION to put it on PROGRAM.</string>
+    <string name="studio_preview_label">Preview · %1$s</string>
+    <string name="studio_program">Program</string>
+    <string name="studio_transition">Transition</string>
+    <string name="tag_preview">Preview</string>
+    <string name="tag_program">Program</string>
 </resources>

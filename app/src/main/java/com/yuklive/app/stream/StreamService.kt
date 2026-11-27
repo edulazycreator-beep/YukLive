@@ -55,7 +55,7 @@ class StreamService : Service() {
                     StreamPhase.Live -> getString(R.string.notif_live, s.destinationName.orEmpty(), st.bitrateKbps)
                     StreamPhase.Connecting -> getString(R.string.notif_connecting)
                     is StreamPhase.Reconnecting -> getString(R.string.notif_reconnecting, p.secondsLeft)
-                    StreamPhase.Idle -> getString(R.string.notif_ending)
+                    StreamPhase.Idle -> getString(if (s.recording) R.string.notif_recording else R.string.notif_ending)
                 }
                 getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(text))
             }
@@ -64,8 +64,7 @@ class StreamService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_END) {
-            engine.endLive()
-            stopSelf()
+            engine.stopAll()
         }
         return START_NOT_STICKY
     }

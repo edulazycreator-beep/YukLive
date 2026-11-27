@@ -1,7 +1,6 @@
 package com.yuklive.app.feature.studio
 
 import android.os.SystemClock
-import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
 import androidx.lifecycle.ViewModel
@@ -26,7 +25,12 @@ import com.yuklive.app.subtitle.SubtitleRepository
 import com.yuklive.app.video.CameraController
 import com.yuklive.app.video.CameraLens
 import com.yuklive.app.video.CameraUiState
+import com.yuklive.app.video.UvcFormat
+import com.yuklive.app.video.UvcState
+import com.yuklive.app.video.UvcVideoSource
 import com.yuklive.app.video.WhiteBalance
+import com.yuklive.app.video.network.NetworkInputState
+import com.yuklive.app.video.network.NetworkVideoSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -35,6 +39,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -52,6 +57,8 @@ class StudioViewModel @Inject constructor(
     private val overlayRepo: OverlayRepository,
     private val subtitleRepo: SubtitleRepository,
     private val settingsRepo: SettingsRepository,
+    private val uvc: UvcVideoSource,
+    network: NetworkVideoSource,
     liveSession: LiveSessionRepository,
     subtitleEngine: SubtitleEngine,
 ) : ViewModel() {
@@ -63,6 +70,8 @@ class StudioViewModel @Inject constructor(
     val mixerState: StateFlow<MixerState> = mixer.state
     val overlay: StateFlow<OverlayDocument> = overlayRepo.document
     val recognizer = subtitleEngine.recognizer
+    val uvcState: StateFlow<UvcState> = uvc.state
+    val networkState: StateFlow<NetworkInputState> = network.state
 
     val destinationState: StateFlow<DestinationState> = destinations.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DestinationState())
@@ -93,13 +102,28 @@ class StudioViewModel @Inject constructor(
     fun attachPreview(view: SurfaceView) = engine.attachPreview(view)
     fun detachPreview(view: SurfaceView) = engine.detachPreview(view)
 
-    fun onPreviewTap(view: View, event: MotionEvent) {
-        if (engine.state.value.source == SourceKind.Camera) camera.tapToFocus(view, event)
+    fun focusAt(view: View, x: Float, y: Float) {
+        if (engine.state.value.source == SourceKind.Camera) camera.focusAt(view, x, y)
     }
 
-    fun onPreviewPinch(event: MotionEvent) {
-        if (engine.state.value.source == SourceKind.Camera) camera.onPinch(event)
+    fun zoomBy(factor: Float) {
+        if (engine.state.value.source == SourceKind.Camera) camera.zoomBy(factor)
     }
+
+    /** Durasi rekaman (REC) yang berjalan. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val recordElapsed: StateFlow<Long> = engine.state.map { it.recordStartedAt }.distinctUntilChanged().flatMapLatest { started ->
+        if (started != null) {
+            flow {
+                while (true) {
+                    emit(SystemClock.elapsedRealtime() - started)
+                    delay(500)
+                }
+            }
+        } else {
+            flowOf(0L)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
     fun startMonitoring() = mixer.acquireMonitor()
     fun stopMonitoring() = mixer.releaseMonitor()
@@ -130,15 +154,13 @@ class StudioViewModel @Inject constructor(
 
     fun switchSource(kind: SourceKind) = engine.switchSource(kind)
 
-    fun applyScene(id: String) {
-        overlay.value.scenes.firstOrNull { it.id == id }?.let(engine::applyScene)
-    }
-
     fun toggleSubtitle() {
         viewModelScope.launch { subtitleRepo.update { it.copy(enabled = !it.enabled) } }
     }
 
     fun toggleMute() = engine.setMuted(!mixer.state.value.masterMuted)
+    fun setMasterMuted(muted: Boolean) = engine.setMuted(muted)
+    fun selectUvcFormat(format: UvcFormat) = uvc.selectFormat(format)
 
     fun toggleOverlay() {
         val next = !_overlayOn.value
@@ -151,7 +173,8 @@ class StudioViewModel @Inject constructor(
     }
 
     fun setLiveBitrate(kbps: Int) = engine.setLiveBitrate(kbps)
-    fun setRecording(on: Boolean) = engine.setRecording(on)
+    fun setRecordWithLive(on: Boolean) = engine.setRecordWithLive(on)
+    fun toggleRecording() = engine.toggleRecording()
 
     // Kamera
     fun selectLens(lens: CameraLens) = camera.selectLens(lens)

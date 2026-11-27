@@ -6,13 +6,11 @@
     <!-- Navigasi -->
     <string name="tab_home">Beranda</string>
     <string name="tab_studio">Studio</string>
-    <string name="tab_overlay">Overlay</string>
     <string name="tab_settings">Pengaturan</string>
 
     <string name="screen_sources">Sumber Video</string>
     <string name="screen_subtitle">Subtitle Live</string>
     <string name="screen_destinations">Tujuan Stream</string>
-    <string name="screen_overlay">Overlay &amp; Scene</string>
     <string name="screen_settings">Pengaturan</string>
 
     <!-- Aksi umum -->
@@ -36,7 +34,7 @@
     <string name="home_destinations_empty_body">Tambahkan YouTube, Facebook, TikTok, Twitch, Instagram, atau server RTMP/SRT sendiri.</string>
     <string name="home_destinations_add">Tambah Tujuan</string>
     <string name="home_section_scenes">Scene Terakhir</string>
-    <string name="home_scenes_open_overlay">Buka Overlay</string>
+    <string name="home_scenes_open_overlay">Atur scene di Studio</string>
     <string name="home_section_tools">Alat</string>
     <string name="home_tools_sources_desc">Kamera HP, capture card USB, Wi-Fi</string>
     <string name="home_tools_subtitle_desc">Teks otomatis dari suara siaran</string>
@@ -45,25 +43,12 @@
     <string name="studio_bitrate_value">%1$d kbps</string>
     <string name="studio_temp_value">%1$d°C</string>
     <string name="studio_battery_value">%1$d%%</string>
-    <string name="studio_toggle_subtitle">Subtitle</string>
-    <string name="studio_mute">Matikan suara</string>
-    <string name="studio_unmute">Nyalakan suara</string>
-    <string name="studio_toggle_overlay">Overlay</string>
-    <string name="studio_quick_settings">Pengaturan Cepat</string>
-    <string name="source_camera">Kamera</string>
-    <string name="source_usb">USB</string>
-    <string name="source_wifi">Wi-Fi</string>
     <string name="quick_section_video">Resolusi</string>
 
     <string name="end_live_title">Akhiri siaran?</string>
     <string name="end_live_body">Penonton tidak akan melihat siaranmu lagi setelah ini.</string>
 
     <!-- Overlay -->
-    <string name="overlay_section_layers">Layer</string>
-    <string name="overlay_layers_empty_title">Belum ada layer</string>
-    <string name="overlay_layers_empty_body">Teks, logo PNG, lower-third, jam/timer, badge LIVE, dan running text.</string>
-    <string name="overlay_section_scenes">Scene</string>
-    <string name="overlay_scene_count">%1$d/%2$d</string>
 
     <!-- Sumber -->
     <string name="sources_camera">Kamera HP</string>
@@ -223,12 +208,8 @@
     <string name="notif_title">YukLive sedang siaran</string>
     <string name="orientation_landscape">Landscape 16:9</string>
     <string name="orientation_portrait">Portrait 9:16</string>
-    <string name="overlay_add_layer">Tambah layer</string>
     <string name="overlay_add_scene">Tambah scene</string>
-    <string name="overlay_editor_hint">Ketuk layer untuk memilih. Geser untuk memindah, cubit untuk mengubah ukuran, putar dua jari untuk memutar.</string>
     <string name="overlay_scene_default_name">Scene %1$d</string>
-    <string name="overlay_scene_source">Sumber</string>
-    <string name="overlay_section_preview">Editor</string>
     <string name="overlay_section_properties">Properti · %1$s</string>
     <string name="perm_allow">Izinkan</string>
     <string name="perm_camera">Kamera: untuk menampilkan dan menyiarkan gambar dari kamera HP.</string>
@@ -275,7 +256,6 @@
     <string name="quick_locked_live">Terkunci saat live</string>
     <string name="quick_record">Rekam lokal (MP4)</string>
     <string name="quick_record_hint">Simpan salinan siaran ke galeri.</string>
-    <string name="quick_section_audio_mixer">Mixer audio</string>
     <string name="quick_section_camera">Kamera</string>
     <string name="quick_section_transition">Transisi ganti sumber</string>
     <string name="quick_stabilization">Stabilisasi</string>
@@ -354,4 +334,42 @@
     <string name="wb_fluorescent">Neon</string>
     <string name="wb_indoor">Lampu</string>
     <string name="wb_locked">Kunci</string>
+
+    <!-- Studio mini OBS -->
+    <string name="action_move_down">Turunkan</string>
+    <string name="action_move_up">Naikkan</string>
+    <string name="action_record">Rekam</string>
+    <string name="add_current">Dipakai</string>
+    <string name="add_section_overlay">Overlay</string>
+    <string name="add_section_video">Sumber video scene</string>
+    <string name="dock_add_source">Tambah source</string>
+    <string name="dock_audio">Mixer audio</string>
+    <string name="dock_controls">Kontrol</string>
+    <string name="dock_master_mute">Bisukan semua</string>
+    <string name="dock_properties">Properti</string>
+    <string name="dock_record_with_live">Rekam otomatis saat live</string>
+    <string name="dock_scenes">Scene %1$d/%2$d</string>
+    <string name="dock_sources">Sources · %1$s</string>
+    <string name="dock_tab_audio">Audio</string>
+    <string name="dock_tab_controls">Kontrol</string>
+    <string name="dock_tab_scene_source">Scene &amp; Sources</string>
+    <string name="dock_tab_scenes">Scene</string>
+    <string name="dock_tab_sources">Sources</string>
+    <string name="dock_toggle_lock">Kunci posisi</string>
+    <string name="dock_toggle_visible">Tampil/sembunyi</string>
+    <string name="notif_recording">Merekam ke MP4…</string>
+    <string name="props_not_program">Scene ini belum tayang. Kontrol di bawah berlaku untuk sumber yang sedang dipakai.</string>
+    <string name="props_open_sources">Atur di layar Sumber</string>
+    <string name="props_open_subtitle">Pengaturan subtitle lengkap</string>
+    <string name="props_subtitle_hint">Subtitle tampil di atas semua scene.</string>
+    <string name="props_wifi_summary">Mode %1$s · %2$d kbps · buffer %3$d ms</string>
+    <string name="status_not_ready">Belum siap</string>
+    <string name="status_ready">Siap</string>
+    <string name="studio_mode">Studio Mode</string>
+    <string name="studio_mode_hint">Siapkan scene di PREVIEW, lalu tekan TRANSISI untuk menayangkannya ke PROGRAM.</string>
+    <string name="studio_preview_label">Preview · %1$s</string>
+    <string name="studio_program">Program</string>
+    <string name="studio_transition">Transisi</string>
+    <string name="tag_preview">Preview</string>
+    <string name="tag_program">Program</string>
 </resources>

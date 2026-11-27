@@ -144,6 +144,22 @@ class CameraController @Inject constructor(
         _state.update { it.copy(zoom = source.getZoom()) }
     }
 
+    /** Zoom relatif (dari gestur cubit Compose). */
+    fun zoomBy(factor: Float) = runIfOpen {
+        val st = _state.value
+        val next = (source.getZoom() * factor).coerceIn(st.zoomRange.start, st.zoomRange.endInclusive)
+        source.setZoom(next)
+        _state.update { it.copy(zoom = source.getZoom()) }
+    }
+
+    /** Fokus di titik (x, y) pada [view] preview. */
+    fun focusAt(view: View, x: Float, y: Float) {
+        val now = android.os.SystemClock.uptimeMillis()
+        val ev = MotionEvent.obtain(now, now, MotionEvent.ACTION_UP, x, y, 0)
+        tapToFocus(view, ev)
+        ev.recycle()
+    }
+
     fun tapToFocus(view: View, event: MotionEvent) = runIfOpen {
         source.tapToFocus(view, event)
         source.tapToMeterExposure(view, event)

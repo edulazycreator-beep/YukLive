@@ -46,9 +46,21 @@ class OverlayRepository @Inject constructor(
 
     fun update(transform: (OverlayDocument) -> OverlayDocument) = _doc.update(transform)
 
-    fun updateActiveLayers(transform: (List<OverlayLayer>) -> List<OverlayLayer>) = update { doc ->
-        val active = doc.activeScene
-        doc.copy(scenes = doc.scenes.map { if (it.id == active.id) it.copy(layers = transform(it.layers)) else it })
+    fun updateActiveLayers(transform: (List<OverlayLayer>) -> List<OverlayLayer>) =
+        updateSceneLayers(_doc.value.activeScene.id, transform)
+
+    fun updateSceneLayers(sceneId: String, transform: (List<OverlayLayer>) -> List<OverlayLayer>) = update { doc ->
+        doc.copy(scenes = doc.scenes.map { if (it.id == sceneId) it.copy(layers = transform(it.layers)) else it })
+    }
+
+    fun updateLayerIn(sceneId: String, id: String, transform: (OverlayLayer) -> OverlayLayer) =
+        updateSceneLayers(sceneId) { layers -> layers.map { if (it.id == id) transform(it) else it } }
+
+    fun moveScene(id: String, up: Boolean) = update { doc ->
+        val i = doc.scenes.indexOfFirst { it.id == id }
+        val j = if (up) i - 1 else i + 1
+        if (i < 0 || j !in doc.scenes.indices) doc
+        else doc.copy(scenes = doc.scenes.toMutableList().apply { add(j, removeAt(i)) })
     }
 
     fun updateLayer(id: String, transform: (OverlayLayer) -> OverlayLayer) =
@@ -56,15 +68,21 @@ class OverlayRepository @Inject constructor(
 
     fun setActiveScene(id: String) = update { it.copy(activeSceneId = id) }
 
-    fun addScene(name: String, source: SourceKind, copyFrom: Scene?): Boolean {
-        if (_doc.value.scenes.size >= OverlayDocument.MAX_SCENES) return false
+    /** @return id scene baru, atau null kalau sudah 8 scene. */
+    fun addScene(name: String, source: SourceKind, copyFrom: Scene?, activate: Boolean = false): String? {
+        if (_doc.value.scenes.size >= OverlayDocument.MAX_SCENES) return null
         val scene = Scene(
             name = name,
             source = source,
             layers = copyFrom?.layers?.map { it.copy(id = UUID.randomUUID().toString()) }.orEmpty(),
         )
-        update { it.copy(scenes = it.scenes + scene, activeSceneId = scene.id) }
-        return true
+        update { doc ->
+            doc.copy(
+                scenes = doc.scenes + scene,
+                activeSceneId = if (activate) scene.id else (doc.activeSceneId ?: doc.activeScene.id),
+            )
+        }
+        return scene.id
     }
 
     fun deleteScene(id: String) = update { doc ->

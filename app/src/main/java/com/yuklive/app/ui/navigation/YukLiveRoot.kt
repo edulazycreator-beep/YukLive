@@ -23,7 +23,6 @@ import androidx.navigation.compose.rememberNavController
 import com.yuklive.app.stream.StreamEngine
 import com.yuklive.app.feature.destinations.DestinationsScreen
 import com.yuklive.app.feature.home.HomeScreen
-import com.yuklive.app.feature.overlay.OverlayScreen
 import com.yuklive.app.feature.settings.SettingsScreen
 import com.yuklive.app.feature.sources.SourcesScreen
 import com.yuklive.app.feature.studio.StudioScreen
@@ -54,8 +53,8 @@ fun YukLiveRoot(viewModel: RootViewModel = hiltViewModel()) {
     val route = backStack?.destination?.route
     val isLive by viewModel.isLive.collectAsStateWithLifecycle()
 
-    // Saat live, Studio tampil penuh layar (navigasi bawah disembunyikan).
-    val showBottomBar = route != null && route in TopTab.routes && !(route == Routes.STUDIO && isLive)
+    // Studio selalu penuh layar seperti OBS (navigasi bawah disembunyikan).
+    val showBottomBar = route != null && route in TopTab.routes && route != Routes.STUDIO
 
     Scaffold(
         containerColor = YukColors.Black,
@@ -101,13 +100,18 @@ private fun YukNavHost(navController: NavHostController, modifier: Modifier) {
                 onOpenDestinations = { navController.navigate(Routes.DESTINATIONS) },
                 onOpenSources = { navController.navigate(Routes.SOURCES) },
                 onOpenSubtitle = { navController.navigate(Routes.SUBTITLE) },
-                onOpenOverlay = { navController.navigateToTab(TopTab.Overlay) },
+                onOpenOverlay = { navController.navigateToTab(TopTab.Studio) },
             )
         }
         composable(Routes.STUDIO) {
-            StudioScreen(onOpenDestinations = { navController.navigate(Routes.DESTINATIONS) })
+            StudioScreen(
+                onExit = { navController.navigateToTab(TopTab.Home) },
+                onOpenDestinations = { navController.navigate(Routes.DESTINATIONS) },
+                onOpenSources = { navController.navigate(Routes.SOURCES) },
+                onOpenSubtitle = { navController.navigate(Routes.SUBTITLE) },
+                onOpenSettings = { navController.navigateToTab(TopTab.Settings) },
+            )
         }
-        composable(Routes.OVERLAY) { OverlayScreen() }
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onOpenSources = { navController.navigate(Routes.SOURCES) },
