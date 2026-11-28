@@ -19,8 +19,8 @@ import javax.inject.Singleton
 @Singleton
 class ColorBarSource @Inject constructor() : VideoSource() {
 
-    private var width = 1920
-    private var height = 1080
+    private var barW = 1920
+    private var barH = 1080
     private var surface: Surface? = null
     private var thread: HandlerThread? = null
     private var handler: Handler? = null
@@ -29,13 +29,13 @@ class ColorBarSource @Inject constructor() : VideoSource() {
 
     override fun create(width: Int, height: Int, fps: Int, rotation: Int): Boolean {
         // Selalu digambar landscape; pipeline yang menyesuaikan ke orientasi stream.
-        this.width = maxOf(width, height)
-        this.height = minOf(width, height)
+        barW = maxOf(width, height)
+        barH = minOf(width, height)
         return true
     }
 
     override fun start(surfaceTexture: SurfaceTexture) {
-        surfaceTexture.setDefaultBufferSize(width, height)
+        surfaceTexture.setDefaultBufferSize(barW, barH)
         surface = Surface(surfaceTexture)
         val t = HandlerThread("ColorBar").also { it.start() }
         thread = t
