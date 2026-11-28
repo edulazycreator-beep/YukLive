@@ -408,4 +408,6 @@
     <string name="sources_colorbar">Color bar</string>
     <string name="colorbar_status">Pola uji</string>
     <string name="colorbar_hint">Pola uji warna. Dipakai sebagai latar default scene baru. Tambahkan Kamera HP, Capture card, atau Wi-Fi lewat tombol + untuk menggantinya.</string>
+    <string name="props_subtitle_move_hint">Geser posisi: pilih Subtitle live di daftar (atau tap teksnya), lalu seret di layar.</string>
+    <string name="props_subtitle_reset_pos">Kembalikan posisi</string>
 </resources>
