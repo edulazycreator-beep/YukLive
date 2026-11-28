@@ -112,9 +112,21 @@ class SceneEditorViewModel @Inject constructor(
         val doc = repo.document.value
         val name = context.getString(R.string.overlay_scene_default_name, doc.scenes.size + 1)
         val base = editingScene.value
+        // Scene baru kosong (seperti OBS): overlay tidak ikut tersalin.
+        val id = repo.addScene(name, base.source, copyFrom = null) ?: return
+        selectScene(id)
+    }
+
+    /** Salin scene yang sedang diedit beserta semua overlay-nya. */
+    fun duplicateScene() {
+        val base = editingScene.value
+        val name = context.getString(R.string.scene_copy_name, base.name).take(24)
         val id = repo.addScene(name, base.source, copyFrom = base) ?: return
         selectScene(id)
     }
+
+    /** Tampil/sembunyikan subtitle khusus di scene yang sedang diedit. */
+    fun toggleSceneSubtitle() = repo.updateScene(editingScene.value.id) { it.copy(showSubtitle = !it.showSubtitle) }
 
     fun renameScene(id: String, name: String) = repo.updateScene(id) { it.copy(name = name.ifBlank { it.name }) }
 

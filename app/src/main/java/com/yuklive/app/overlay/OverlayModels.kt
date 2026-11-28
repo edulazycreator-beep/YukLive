@@ -53,6 +53,8 @@ data class Scene(
     val name: String,
     val source: SourceKind = SourceKind.Camera,
     val layers: List<OverlayLayer> = emptyList(),
+    /** Subtitle live tampil di scene ini (mesin subtitle tetap global). */
+    val showSubtitle: Boolean = true,
 )
 
 data class OverlayDocument(

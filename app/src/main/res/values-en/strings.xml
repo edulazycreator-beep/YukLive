@@ -396,4 +396,7 @@
     <string name="dock_overlay_empty">No overlays yet. Tap + to add text, an image or a ticker.</string>
     <string name="dock_subtitle_on">On · from stream audio</string>
     <string name="dock_subtitle_off">Off</string>
+    <string name="scene_copy_name">%1$s (copy)</string>
+    <string name="scene_duplicate">Duplicate scene</string>
+    <string name="dock_subtitle_hidden_scene">Hidden in this scene</string>
 </resources>

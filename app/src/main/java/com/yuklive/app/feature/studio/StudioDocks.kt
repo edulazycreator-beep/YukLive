@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.GraphicEq
@@ -316,6 +317,7 @@ fun ScenesPanel(
     isLive: Boolean,
     onSelect: (String) -> Unit,
     onAdd: () -> Unit,
+    onDuplicate: () -> Unit,
     onRename: (Scene) -> Unit,
     onDelete: (String) -> Unit,
     onMove: (String, Boolean) -> Unit,
@@ -325,6 +327,8 @@ fun ScenesPanel(
     Column(modifier) {
         DockHeader(stringResource(R.string.dock_scenes, doc.scenes.size, OverlayDocument.MAX_SCENES)) {
             DockIcon(Icons.Outlined.Add, stringResource(R.string.overlay_add_scene), enabled = doc.scenes.size < OverlayDocument.MAX_SCENES, onClick = onAdd)
+            DockIcon(Icons.Outlined.ContentCopy, stringResource(R.string.scene_duplicate),
+                enabled = editing != null && doc.scenes.size < OverlayDocument.MAX_SCENES, onClick = onDuplicate)
             if (doc.scenes.size > 1 && editing != null) {
                 DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete)) { onDelete(editing.id) }
             }
@@ -371,6 +375,7 @@ fun SourcesPanel(
     items: List<SourceItem>,
     selectedKey: String?,
     subtitleOn: Boolean,
+    subtitleInScene: Boolean,
     videoStatus: String?,
     onSelect: (String?) -> Unit,
     onAdd: (() -> Unit)?,
@@ -405,13 +410,19 @@ fun SourcesPanel(
                 val sel = item.key == selectedKey
                 val (icon, title, subtitle) = when (item) {
                     SourceItem.Subtitle -> Triple(Icons.Outlined.Subtitles, stringResource(R.string.subtitle_enable),
-                        stringResource(if (subtitleOn) R.string.dock_subtitle_on else R.string.dock_subtitle_off))
+                        stringResource(
+                            when {
+                                !subtitleOn -> R.string.dock_subtitle_off
+                                !subtitleInScene -> R.string.dock_subtitle_hidden_scene
+                                else -> R.string.dock_subtitle_on
+                            },
+                        ))
                     is SourceItem.Layer -> Triple(layerIcon(item.layer.type), item.layer.name,
                         stringResource(SceneEditorViewModel.layerTypeName(item.layer.type)))
                     is SourceItem.Video -> Triple(videoIcon(item.kind), stringResource(SceneEditorViewModel.sourceName(item.kind)), videoStatus)
                 }
                 val visible = when (item) {
-                    SourceItem.Subtitle -> subtitleOn
+                    SourceItem.Subtitle -> subtitleOn && subtitleInScene
                     is SourceItem.Layer -> item.layer.visible
                     is SourceItem.Video -> true
                 }

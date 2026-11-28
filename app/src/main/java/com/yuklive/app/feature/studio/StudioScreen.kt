@@ -194,14 +194,14 @@ private fun StudioContent(
     val scenesPanel: @Composable (Modifier) -> Unit = { m ->
         ScenesPanel(
             doc = doc, editingSceneId = editingScene.id, studioMode = studioMode, isLive = isLive,
-            onSelect = scenes::selectScene, onAdd = scenes::addScene, onRename = { renaming = it },
+            onSelect = scenes::selectScene, onAdd = scenes::addScene, onDuplicate = scenes::duplicateScene, onRename = { renaming = it },
             onDelete = scenes::deleteScene, onMove = scenes::moveScene, modifier = m,
         )
     }
     @Composable
     fun SourceList(m: Modifier, title: String, list: List<SourceItem>, onAdd: (() -> Unit)?) {
             SourcesPanel(
-                title = title, items = list, selectedKey = selectedKey, subtitleOn = subtitleOn, videoStatus = videoStatus,
+                title = title, items = list, selectedKey = selectedKey, subtitleOn = subtitleOn, subtitleInScene = editingScene.showSubtitle, videoStatus = videoStatus,
                 onSelect = scenes::select,
                 onAdd = onAdd,
                 onDelete = scenes::deleteLayer,
@@ -209,7 +209,8 @@ private fun StudioContent(
                 onMove = { id, up -> scenes.moveLayer(id, up) },
                 onToggleVisible = { item ->
                     when (item) {
-                        SourceItem.Subtitle -> vm.toggleSubtitle()
+                        // Mata = tampil di scene ini saja. Mesin subtitle dinyalakan lewat gear.
+                        SourceItem.Subtitle -> if (subtitleOn) scenes.toggleSceneSubtitle() else vm.toggleSubtitle()
                         is SourceItem.Layer -> scenes.update(item.layer.id) { it.copy(visible = !it.visible) }
                         is SourceItem.Video -> Unit
                     }

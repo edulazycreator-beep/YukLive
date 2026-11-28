@@ -115,7 +115,8 @@ class StreamCompositor @Inject constructor(
             val layers = if (overlayEnabled) doc.activeScene.layers else emptyList()
             val subtitle = subtitleEngine.frame()
             val fade = currentFade(now)
-            val docHash = layers.hashCode() + if (overlayEnabled) 1 else 0
+            val sceneSubtitle = doc.activeScene.showSubtitle
+            val docHash = layers.hashCode() + (if (overlayEnabled) 1 else 0) + (if (sceneSubtitle) 2 else 0)
             val second = now / 1000
 
             val dirty = forceRedraw || wasAnimating || docHash != lastDocHash ||
@@ -130,7 +131,7 @@ class StreamCompositor @Inject constructor(
                     val w = bmp.width.toFloat()
                     val h = bmp.height.toFloat()
                     var animating = overlayRenderer.draw(canvas, w, h, layers, liveStartedAt, now)
-                    if (subtitle.visible) {
+                    if (subtitle.visible && sceneSubtitle) {
                         animating = subtitleRenderer.draw(canvas, w, h, subtitle, now) || animating
                     }
                     if (fade > 0f) {

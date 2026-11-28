@@ -75,6 +75,7 @@ class OverlayRepository @Inject constructor(
             name = name,
             source = source,
             layers = copyFrom?.layers?.map { it.copy(id = UUID.randomUUID().toString()) }.orEmpty(),
+            showSubtitle = copyFrom?.showSubtitle ?: true,
         )
         update { doc ->
             doc.copy(
@@ -134,13 +135,14 @@ class OverlayRepository @Inject constructor(
     }
 
     private fun sceneTo(s: Scene) = JSONObject()
-        .put("id", s.id).put("name", s.name).put("source", s.source.name)
+        .put("id", s.id).put("name", s.name).put("source", s.source.name).put("subtitle", s.showSubtitle)
         .put("layers", JSONArray().apply { s.layers.forEach { put(layerTo(it)) } })
 
     private fun sceneFrom(o: JSONObject) = Scene(
         id = o.getString("id"),
         name = o.optString("name", "Scene"),
         source = enumOr(o.optString("source"), SourceKind.Camera),
+        showSubtitle = o.optBoolean("subtitle", true),
         layers = o.optJSONArray("layers")?.let { arr -> (0 until arr.length()).map { layerFrom(arr.getJSONObject(it)) } }.orEmpty(),
     )
 

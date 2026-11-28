@@ -401,4 +401,7 @@
     <string name="dock_overlay_empty">Belum ada overlay. Tekan + untuk menambah teks, gambar, atau running text.</string>
     <string name="dock_subtitle_on">Aktif · dari audio stream</string>
     <string name="dock_subtitle_off">Mati</string>
+    <string name="scene_copy_name">%1$s (salinan)</string>
+    <string name="scene_duplicate">Duplikat scene</string>
+    <string name="dock_subtitle_hidden_scene">Disembunyikan di scene ini</string>
 </resources>
