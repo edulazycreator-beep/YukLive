@@ -214,6 +214,9 @@ fun VideoSourceProperties(
                 }
             }
         }
+        SourceKind.ColorBar -> {
+            Text(stringResource(R.string.colorbar_hint), style = YukType.BodySmall, color = YukColors.TextSecondary)
+        }
         SourceKind.Wifi -> {
             val (label, color) = when (net.status) {
                 NetworkStatus.Idle -> stringResource(R.string.net_status_idle) to YukColors.TextSecondary

@@ -400,4 +400,7 @@
     <string name="scene_duplicate">Duplicate scene</string>
     <string name="dock_subtitle_hidden_scene">Hidden in this scene</string>
     <string name="add_video_hint">Each scene uses one video as its bottom layer. Picking another replaces it.</string>
+    <string name="sources_colorbar">Color bars</string>
+    <string name="colorbar_status">Test pattern</string>
+    <string name="colorbar_hint">Colour test pattern, the default background of new scenes. Add Phone camera, Capture card or Wi-Fi with + to replace it.</string>
 </resources>

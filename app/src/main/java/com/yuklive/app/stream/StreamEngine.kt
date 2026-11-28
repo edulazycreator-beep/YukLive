@@ -115,6 +115,7 @@ class StreamEngine @Inject constructor(
     private val camera: CameraController,
     private val uvc: UvcVideoSource,
     private val network: NetworkVideoSource,
+    private val colorBar: com.yuklive.app.video.ColorBarSource,
     private val compositor: StreamCompositor,
     private val overlayRepo: OverlayRepository,
     private val subtitles: SubtitleEngine,
@@ -189,13 +190,17 @@ class StreamEngine @Inject constructor(
         }
         // Scene aktif menentukan sumber video.
         scope.launch {
-            var lastSceneId: String? = null
+            var lastKey: Pair<String, SourceKind>? = null
             overlayRepo.document.collect { doc ->
                 val scene = doc.activeScene
-                if (scene.id != lastSceneId) {
-                    val first = lastSceneId == null
-                    lastSceneId = scene.id
-                    if (!first && !sceneSwitchInProgress && scene.source != _state.value.source) {
+                val key = scene.id to scene.source
+                if (key != lastKey) {
+                    val first = lastKey == null
+                    lastKey = key
+                    if (first && stream == null) {
+                        // Belum ada pipeline: cukup pakai sumber scene aktif sejak awal.
+                        _state.update { it.copy(source = scene.source) }
+                    } else if (!sceneSwitchInProgress && scene.source != _state.value.source) {
                         switchSource(scene.source, announce = false)
                     }
                 }
@@ -491,6 +496,7 @@ class StreamEngine @Inject constructor(
         SourceKind.Camera -> camera.source
         SourceKind.Usb -> uvc
         SourceKind.Wifi -> network
+        SourceKind.ColorBar -> colorBar
     }
 
     // ---------------------------------------------------------------- Persiapan encoder
@@ -600,10 +606,9 @@ class StreamEngine @Inject constructor(
         st: StreamSettings = preparedSettings ?: _state.value.settings,
     ) {
         val portrait = st.orientation == StreamOrientation.Portrait
-        val cameraOrientation = when (kind) {
-            SourceKind.Camera -> if (portrait) 0 else 270
-            else -> 0
-        }
+        // USB / Wi-Fi / Color bar memakai konfigurasi orientasinya sendiri (landscape paksa).
+        if (kind != SourceKind.Camera) return
+        val cameraOrientation = if (portrait) 0 else 270
         runCatching {
             s.getGlInterface().setOrientationConfig(
                 OrientationConfig(cameraOrientation = cameraOrientation, isPortrait = portrait),

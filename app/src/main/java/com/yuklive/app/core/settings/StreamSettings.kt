@@ -13,7 +13,7 @@ enum class VideoCodecOption(val label: String) { H264("H.264"), H265("H.265") }
 enum class TransitionType { Cut, Fade }
 
 /** Sumber video yang bisa dipilih di Studio. */
-enum class SourceKind { Camera, Usb, Wifi }
+enum class SourceKind { Camera, Usb, Wifi, ColorBar }
 
 data class StreamSettings(
     val resolution: Resolution = Resolution.FHD1080,

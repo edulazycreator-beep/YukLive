@@ -405,4 +405,7 @@
     <string name="scene_duplicate">Duplikat scene</string>
     <string name="dock_subtitle_hidden_scene">Disembunyikan di scene ini</string>
     <string name="add_video_hint">Satu scene memakai satu video sebagai lapisan paling bawah. Memilih yang lain akan menggantinya.</string>
+    <string name="sources_colorbar">Color bar</string>
+    <string name="colorbar_status">Pola uji</string>
+    <string name="colorbar_hint">Pola uji warna. Dipakai sebagai latar default scene baru. Tambahkan Kamera HP, Capture card, atau Wi-Fi lewat tombol + untuk menggantinya.</string>
 </resources>

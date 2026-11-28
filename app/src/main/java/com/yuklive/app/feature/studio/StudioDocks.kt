@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ViewWeek
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Layers
@@ -384,9 +385,11 @@ fun SourcesPanel(
     onMove: (String, Boolean) -> Unit,
     onToggleVisible: (SourceItem) -> Unit,
     onToggleLock: (String) -> Unit,
+    onRemoveVideo: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val selected = items.firstOrNull { it.key == selectedKey }
+    val videoSelected = (selected as? SourceItem.Video)?.takeIf { it.kind != SourceKind.ColorBar }
     val layerSelected = selected as? SourceItem.Layer
     Column(modifier) {
         DockHeader(title) {
@@ -395,6 +398,10 @@ fun SourcesPanel(
                 DockIcon(Icons.Outlined.KeyboardArrowUp, stringResource(R.string.action_move_up)) { onMove(layerSelected.layer.id, true) }
                 DockIcon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.action_move_down)) { onMove(layerSelected.layer.id, false) }
                 DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete)) { onDelete(layerSelected.layer.id) }
+            }
+            // Video bisa dihapus seperti source biasa → scene kembali ke color bar.
+            if (videoSelected != null) {
+                DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete)) { onRemoveVideo() }
             }
             if (onAdd != null) DockIcon(Icons.Outlined.Add, stringResource(R.string.dock_add_overlay), onClick = onAdd)
         }
@@ -474,6 +481,7 @@ fun videoIcon(kind: SourceKind): ImageVector = when (kind) {
     SourceKind.Camera -> Icons.Outlined.CameraAlt
     SourceKind.Usb -> Icons.Outlined.Usb
     SourceKind.Wifi -> Icons.Outlined.Wifi
+    SourceKind.ColorBar -> Icons.Outlined.ViewWeek
 }
 
 // =============================================================== Audio

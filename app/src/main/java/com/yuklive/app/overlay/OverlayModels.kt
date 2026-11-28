@@ -51,7 +51,7 @@ data class OverlayLayer(
 data class Scene(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val source: SourceKind = SourceKind.Camera,
+    val source: SourceKind = SourceKind.ColorBar,
     val layers: List<OverlayLayer> = emptyList(),
     /** Subtitle live tampil di scene ini (mesin subtitle tetap global). */
     val showSubtitle: Boolean = true,

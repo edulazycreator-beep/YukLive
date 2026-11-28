@@ -155,6 +155,7 @@ private fun StudioContent(
         SourceKind.Camera -> listOfNotNull(lensName, engine.settings.resolution.label, "${engine.settings.fps} fps").joinToString(" · ")
         SourceKind.Usb -> stringResource(if (uvc.status == UvcStatus.Ready) R.string.status_ready else R.string.status_not_ready)
         SourceKind.Wifi -> stringResource(if (net.status == NetworkStatus.Playing) R.string.status_ready else R.string.status_not_ready)
+        SourceKind.ColorBar -> stringResource(R.string.colorbar_status)
     }
 
     val onGoLive: () -> Unit = {
@@ -216,6 +217,10 @@ private fun StudioContent(
                     }
                 },
                 onToggleLock = { id -> scenes.update(id) { it.copy(locked = !it.locked) } },
+                onRemoveVideo = {
+                    scenes.removeVideo()
+                    scenes.select(null)
+                },
                 modifier = m,
             )
     }

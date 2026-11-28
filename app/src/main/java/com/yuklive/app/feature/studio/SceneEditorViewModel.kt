@@ -113,7 +113,7 @@ class SceneEditorViewModel @Inject constructor(
         val name = context.getString(R.string.overlay_scene_default_name, doc.scenes.size + 1)
         val base = editingScene.value
         // Scene baru kosong (seperti OBS): overlay tidak ikut tersalin.
-        val id = repo.addScene(name, base.source, copyFrom = null) ?: return
+        val id = repo.addScene(name, SourceKind.ColorBar, copyFrom = null) ?: return
         selectScene(id)
     }
 
@@ -151,9 +151,12 @@ class SceneEditorViewModel @Inject constructor(
 
     fun setVideoSource(kind: SourceKind) {
         val scene = editingScene.value
+        // Engine mengikuti sumber scene Program secara otomatis.
         repo.updateScene(scene.id) { it.copy(source = kind) }
-        if (scene.id == repo.document.value.activeScene.id) engine.switchSource(kind)
     }
+
+    /** Hapus video dari scene → kembali ke color bar. */
+    fun removeVideo() = setVideoSource(SourceKind.ColorBar)
 
     fun addLayer(type: LayerType) {
         val scene = editingScene.value
@@ -227,6 +230,7 @@ class SceneEditorViewModel @Inject constructor(
             SourceKind.Camera -> R.string.sources_camera
             SourceKind.Usb -> R.string.sources_usb
             SourceKind.Wifi -> R.string.sources_wifi
+            SourceKind.ColorBar -> R.string.sources_colorbar
         }
     }
 }
