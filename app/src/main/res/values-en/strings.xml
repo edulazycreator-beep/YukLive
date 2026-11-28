@@ -385,4 +385,15 @@
     <string name="subtitle_preview_placeholder">Subtitle preview appears here</string>
     <string name="subtitle_section_test">Display test</string>
     <string name="subtitle_heard">Heard: “%1$s”</string>
+    <string name="dock_tab_overlay">Overlay</string>
+    <string name="dock_overlay">Overlay · %1$s</string>
+    <string name="dock_video_source">Video source</string>
+    <string name="dock_expand">Expand panel</string>
+    <string name="dock_minimize">Minimize panel</string>
+    <string name="rail_live">LIVE</string>
+    <string name="rail_end">STOP</string>
+    <string name="dock_add_overlay">Add overlay</string>
+    <string name="dock_overlay_empty">No overlays yet. Tap + to add text, an image or a ticker.</string>
+    <string name="dock_subtitle_on">On · from stream audio</string>
+    <string name="dock_subtitle_off">Off</string>
 </resources>

@@ -95,8 +95,10 @@ fun AddSourceSheet(
     onPickVideo: (SourceKind) -> Unit,
     onAddLayer: (LayerType) -> Unit,
     onDismiss: () -> Unit,
+    showVideo: Boolean = true,
 ) {
-    StudioSheet(stringResource(R.string.dock_add_source), onDismiss) {
+    StudioSheet(stringResource(if (showVideo) R.string.dock_add_source else R.string.dock_add_overlay), onDismiss) {
+      if (showVideo) {
         YukLabel(stringResource(R.string.add_section_video))
         Spacer(Modifier.height(Dimens.S1))
         RowGroup {
@@ -113,6 +115,7 @@ fun AddSourceSheet(
         Spacer(Modifier.height(Dimens.S2))
         YukLabel(stringResource(R.string.add_section_overlay))
         Spacer(Modifier.height(Dimens.S1))
+      }
         RowGroup {
             LayerType.entries.forEachIndexed { i, t ->
                 if (i > 0) HairlineDivider()

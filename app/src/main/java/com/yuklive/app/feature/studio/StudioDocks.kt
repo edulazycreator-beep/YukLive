@@ -2,6 +2,7 @@ package com.yuklive.app.feature.studio
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.BatteryStd
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Edit
@@ -95,7 +102,14 @@ import com.yuklive.app.ui.theme.YukType
 import com.yuklive.app.ui.util.formatDuration
 import kotlin.math.roundToInt
 
-enum class DockTab { Scenes, Sources, Audio, Controls }
+enum class DockTab { Scenes, Overlay, Audio, Controls }
+
+fun dockIcon(tab: DockTab): ImageVector = when (tab) {
+    DockTab.Scenes -> Icons.Outlined.Dashboard
+    DockTab.Overlay -> Icons.Outlined.Layers
+    DockTab.Audio -> Icons.Outlined.GraphicEq
+    DockTab.Controls -> Icons.Outlined.Tune
+}
 
 fun channelLabel(ch: AudioChannel): Int = when (ch) {
     AudioChannel.Mic -> R.string.mixer_mic
@@ -181,10 +195,18 @@ private fun IconStat(icon: ImageVector, text: String, color: androidx.compose.ui
 // =============================================================== Dock
 
 @Composable
-fun DockTabs(tabs: List<DockTab>, selected: DockTab, onSelect: (DockTab) -> Unit, labels: Map<DockTab, String>) {
-    Row(Modifier.fillMaxWidth().height(40.dp)) {
+fun DockTabs(
+    tabs: List<DockTab>,
+    selected: DockTab,
+    onSelect: (DockTab) -> Unit,
+    labels: Map<DockTab, String>,
+    collapsed: Boolean = false,
+    collapseIcon: ImageVector? = null,
+    onToggleCollapse: (() -> Unit)? = null,
+) {
+    Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
         tabs.forEach { t ->
-            val sel = t == selected
+            val sel = t == selected && !collapsed
             Column(
                 Modifier.weight(1f).fillMaxHeight().clickable { onSelect(t) },
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -195,8 +217,70 @@ fun DockTabs(tabs: List<DockTab>, selected: DockTab, onSelect: (DockTab) -> Unit
                 Box(Modifier.fillMaxWidth(0.6f).height(2.dp).background(if (sel) YukColors.TextPrimary else YukColors.Black))
             }
         }
+        if (onToggleCollapse != null && collapseIcon != null) {
+            Box(Modifier.width(1.dp).height(24.dp).background(YukColors.Border))
+            DockIcon(collapseIcon, stringResource(if (collapsed) R.string.dock_expand else R.string.dock_minimize), onClick = onToggleCollapse)
+        }
     }
     HairlineDivider()
+}
+
+/**
+ * Dock yang di-minimize (landscape): rel tipis berisi ikon tab, REC, dan LIVE,
+ * supaya panggung hampir selebar layar.
+ */
+@Composable
+fun CollapsedDockRail(
+    engine: EngineState,
+    onExpand: (DockTab?) -> Unit,
+    onRecord: () -> Unit,
+    onGoLive: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier.fillMaxHeight().width(72.dp).background(YukColors.Black).padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        DockIcon(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, stringResource(R.string.dock_expand)) { onExpand(null) }
+        HairlineDivider(Modifier.width(40.dp))
+        DockTab.entries.forEach { t ->
+            Box(Modifier.size(48.dp).clickable { onExpand(t) }, contentAlignment = Alignment.Center) {
+                Icon(dockIcon(t), null, tint = YukColors.TextSecondary, modifier = Modifier.size(20.dp))
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        // REC
+        Box(
+            Modifier
+                .size(48.dp)
+                .border(1.dp, YukColors.BorderStrong, PillShape)
+                .clip(PillShape)
+                .clickable(onClick = onRecord),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (engine.recording) BlinkingDot(YukColors.Live, 14.dp)
+            else Box(Modifier.size(14.dp).background(YukColors.Live, PillShape))
+        }
+        Spacer(Modifier.height(Dimens.S1))
+        // LIVE
+        val live = engine.isActive
+        Box(
+            Modifier
+                .size(56.dp)
+                .background(if (live) YukColors.Live else YukColors.TextPrimary, PillShape)
+                .clip(PillShape)
+                .clickable(onClick = onGoLive),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                stringResource(if (live) R.string.rail_end else R.string.rail_live),
+                style = YukType.LabelSmall,
+                color = if (live) YukColors.TextPrimary else YukColors.Black,
+                maxLines = 1,
+            )
+        }
+        Spacer(Modifier.height(Dimens.S1))
+    }
 }
 
 /** Header panel dock dengan tombol ikon kecil di kanan (seperti toolbar dock OBS). */
@@ -283,13 +367,13 @@ private fun SceneTag(text: String, color: androidx.compose.ui.graphics.Color) {
 
 @Composable
 fun SourcesPanel(
-    scene: Scene,
+    title: String,
     items: List<SourceItem>,
     selectedKey: String?,
     subtitleOn: Boolean,
     videoStatus: String?,
     onSelect: (String?) -> Unit,
-    onAdd: () -> Unit,
+    onAdd: (() -> Unit)?,
     onDelete: (String) -> Unit,
     onProperties: (SourceItem) -> Unit,
     onMove: (String, Boolean) -> Unit,
@@ -300,20 +384,28 @@ fun SourcesPanel(
     val selected = items.firstOrNull { it.key == selectedKey }
     val layerSelected = selected as? SourceItem.Layer
     Column(modifier) {
-        DockHeader(stringResource(R.string.dock_sources, scene.name)) {
+        DockHeader(title) {
             // Aksi hapus & urutan hanya muncul setelah layer dipilih.
             if (layerSelected != null) {
                 DockIcon(Icons.Outlined.KeyboardArrowUp, stringResource(R.string.action_move_up)) { onMove(layerSelected.layer.id, true) }
                 DockIcon(Icons.Outlined.KeyboardArrowDown, stringResource(R.string.action_move_down)) { onMove(layerSelected.layer.id, false) }
                 DockIcon(Icons.Outlined.Remove, stringResource(R.string.action_delete)) { onDelete(layerSelected.layer.id) }
             }
-            DockIcon(Icons.Outlined.Add, stringResource(R.string.dock_add_source), onClick = onAdd)
+            if (onAdd != null) DockIcon(Icons.Outlined.Add, stringResource(R.string.dock_add_overlay), onClick = onAdd)
         }
-        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
+        if (items.isEmpty()) {
+            Text(
+                stringResource(R.string.dock_overlay_empty),
+                style = YukType.BodySmall, color = YukColors.TextSecondary,
+                modifier = Modifier.padding(Dimens.S2),
+            )
+        }
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
             items(items, key = { it.key }) { item ->
                 val sel = item.key == selectedKey
                 val (icon, title, subtitle) = when (item) {
-                    SourceItem.Subtitle -> Triple(Icons.Outlined.Subtitles, stringResource(R.string.subtitle_enable), null)
+                    SourceItem.Subtitle -> Triple(Icons.Outlined.Subtitles, stringResource(R.string.subtitle_enable),
+                        stringResource(if (subtitleOn) R.string.dock_subtitle_on else R.string.dock_subtitle_off))
                     is SourceItem.Layer -> Triple(layerIcon(item.layer.type), item.layer.name,
                         stringResource(SceneEditorViewModel.layerTypeName(item.layer.type)))
                     is SourceItem.Video -> Triple(videoIcon(item.kind), stringResource(SceneEditorViewModel.sourceName(item.kind)), videoStatus)

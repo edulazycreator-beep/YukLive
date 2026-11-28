@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,7 +83,7 @@ fun StudioScreen(
 }
 
 private sealed interface Sheet {
-    data object AddSource : Sheet
+    data object AddOverlay : Sheet
     data class Properties(val key: String) : Sheet
 }
 
@@ -194,24 +198,39 @@ private fun StudioContent(
             onDelete = scenes::deleteScene, onMove = scenes::moveScene, modifier = m,
         )
     }
-    val sourcesPanel: @Composable (Modifier) -> Unit = { m ->
-        SourcesPanel(
-            scene = editingScene, items = items, selectedKey = selectedKey, subtitleOn = subtitleOn, videoStatus = videoStatus,
-            onSelect = scenes::select,
-            onAdd = { sheet = Sheet.AddSource },
-            onDelete = scenes::deleteLayer,
-            onProperties = { sheet = Sheet.Properties(it.key) },
-            onMove = { id, up -> scenes.moveLayer(id, up) },
-            onToggleVisible = { item ->
-                when (item) {
-                    SourceItem.Subtitle -> vm.toggleSubtitle()
-                    is SourceItem.Layer -> scenes.update(item.layer.id) { it.copy(visible = !it.visible) }
-                    is SourceItem.Video -> Unit
-                }
-            },
-            onToggleLock = { id -> scenes.update(id) { it.copy(locked = !it.locked) } },
-            modifier = m,
-        )
+    @Composable
+    fun SourceList(m: Modifier, title: String, list: List<SourceItem>, onAdd: (() -> Unit)?) {
+            SourcesPanel(
+                title = title, items = list, selectedKey = selectedKey, subtitleOn = subtitleOn, videoStatus = videoStatus,
+                onSelect = scenes::select,
+                onAdd = onAdd,
+                onDelete = scenes::deleteLayer,
+                onProperties = { sheet = Sheet.Properties(it.key) },
+                onMove = { id, up -> scenes.moveLayer(id, up) },
+                onToggleVisible = { item ->
+                    when (item) {
+                        SourceItem.Subtitle -> vm.toggleSubtitle()
+                        is SourceItem.Layer -> scenes.update(item.layer.id) { it.copy(visible = !it.visible) }
+                        is SourceItem.Video -> Unit
+                    }
+                },
+                onToggleLock = { id -> scenes.update(id) { it.copy(locked = !it.locked) } },
+                modifier = m,
+            )
+    }
+    val videoItems = items.filterIsInstance<SourceItem.Video>()
+    val overlayItems = items.filter { it !is SourceItem.Video }
+    // Tab SCENE: daftar scene + sumber video scene yang sedang diedit.
+    val scenePanel: @Composable (Modifier) -> Unit = { m ->
+        Column(m) {
+            scenesPanel(Modifier.weight(1f).fillMaxWidth())
+            HairlineDivider()
+            SourceList(Modifier.fillMaxWidth(), stringResource(R.string.dock_video_source), videoItems, null)
+        }
+    }
+    // Tab OVERLAY: subtitle + layer teks/gambar/running text.
+    val overlayPanel: @Composable (Modifier) -> Unit = { m ->
+        SourceList(m, stringResource(R.string.dock_overlay, editingScene.name), overlayItems) { sheet = Sheet.AddOverlay }
     }
     val audioPanel: @Composable (Modifier) -> Unit = { m ->
         AudioPanel(mixer, vm::setMasterMuted, vm::setChannelMuted, vm::setGain, onOpenSources, m)
@@ -231,11 +250,20 @@ private fun StudioContent(
     }
     val tabLabels = mapOf(
         DockTab.Scenes to stringResource(R.string.dock_tab_scenes),
-        DockTab.Sources to stringResource(R.string.dock_tab_sources),
+        DockTab.Overlay to stringResource(R.string.dock_tab_overlay),
         DockTab.Audio to stringResource(R.string.dock_tab_audio),
         DockTab.Controls to stringResource(R.string.dock_tab_controls),
     )
-    var tab by rememberSaveable { mutableStateOf(DockTab.Sources) }
+    var tab by rememberSaveable { mutableStateOf(DockTab.Scenes) }
+    var collapsed by rememberSaveable { mutableStateOf(false) }
+    val dockContent: @Composable (Modifier) -> Unit = { m ->
+        when (tab) {
+            DockTab.Scenes -> scenePanel(m)
+            DockTab.Overlay -> overlayPanel(m)
+            DockTab.Audio -> audioPanel(m)
+            DockTab.Controls -> controlsPanel(m)
+        }
+    }
 
     // ------------------------------------------------------------ Tata letak
     BoxWithConstraints(
@@ -253,34 +281,47 @@ private fun StudioContent(
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     StudioStatusBar(engine, stats, elapsed, onExit)
                     stage(Modifier.weight(1f).fillMaxWidth(), true)
+                    if (collapsed) {
+                        SceneChips(
+                            scenes = doc.scenes, programId = programScene.id, editingId = editingScene.id,
+                            studioMode = studioMode, isLive = isLive, onSelect = scenes::selectScene,
+                        )
+                    }
                 }
                 Box(Modifier.width(1.dp).fillMaxHeight().background(YukColors.Border))
-                Column(Modifier.width(min(360.dp, boxW * 0.4f)).fillMaxHeight()) {
-                    // Landscape: Scene + Source digabung di satu tab (seperti dock OBS).
-                    val landscapeTab = if (tab == DockTab.Scenes) DockTab.Sources else tab
-                    DockTabs(
-                        listOf(DockTab.Sources, DockTab.Audio, DockTab.Controls), landscapeTab, { tab = it },
-                        tabLabels + (DockTab.Sources to stringResource(R.string.dock_tab_scene_source)),
+                if (collapsed) {
+                    // Dock diperkecil: panggung hampir selebar layar.
+                    CollapsedDockRail(
+                        engine = engine,
+                        onExpand = { t ->
+                            t?.let { tab = it }
+                            collapsed = false
+                        },
+                        onRecord = vm::toggleRecording,
+                        onGoLive = onGoLive,
                     )
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        when (landscapeTab) {
-                            DockTab.Audio -> audioPanel(Modifier.fillMaxSize())
-                            DockTab.Controls -> controlsPanel(Modifier.fillMaxSize())
-                            else -> Column(Modifier.fillMaxSize()) {
-                                scenesPanel(Modifier.weight(0.4f).fillMaxWidth())
-                                HairlineDivider()
-                                sourcesPanel(Modifier.weight(0.6f).fillMaxWidth())
-                            }
-                        }
+                } else {
+                    Column(Modifier.width(min(360.dp, boxW * 0.4f)).fillMaxHeight()) {
+                        DockTabs(
+                            DockTab.entries, tab, { tab = it }, tabLabels,
+                            collapseIcon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            onToggleCollapse = { collapsed = true },
+                        )
+                        dockContent(Modifier.weight(1f).fillMaxWidth())
+                        StudioFooter(engine, recordElapsed, vm::toggleRecording, onGoLive)
                     }
-                    StudioFooter(engine, recordElapsed, vm::toggleRecording, onGoLive)
                 }
             }
         } else {
             Column(Modifier.fillMaxSize()) {
                 StudioStatusBar(engine, stats, elapsed, onExit)
-                val stageHeight = if (studioMode) boxH * 0.46f else min(boxW / outputRatio, boxH * 0.52f)
-                stage(Modifier.fillMaxWidth().height(stageHeight), false)
+                val stageModifier = if (collapsed) {
+                    Modifier.fillMaxWidth().weight(1f)
+                } else {
+                    val stageHeight = if (studioMode) boxH * 0.46f else min(boxW / outputRatio, boxH * 0.52f)
+                    Modifier.fillMaxWidth().height(stageHeight)
+                }
+                stage(stageModifier, false)
                 SceneChips(
                     scenes = doc.scenes,
                     programId = programScene.id,
@@ -290,15 +331,18 @@ private fun StudioContent(
                     onSelect = scenes::selectScene,
                 )
                 HairlineDivider()
-                DockTabs(DockTab.entries, tab, { tab = it }, tabLabels)
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    when (tab) {
-                        DockTab.Scenes -> scenesPanel(Modifier.fillMaxSize())
-                        DockTab.Sources -> sourcesPanel(Modifier.fillMaxSize())
-                        DockTab.Audio -> audioPanel(Modifier.fillMaxSize())
-                        DockTab.Controls -> controlsPanel(Modifier.fillMaxSize())
-                    }
-                }
+                DockTabs(
+                    DockTab.entries, tab,
+                    { t ->
+                        tab = t
+                        collapsed = false
+                    },
+                    tabLabels,
+                    collapsed = collapsed,
+                    collapseIcon = if (collapsed) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                    onToggleCollapse = { collapsed = !collapsed },
+                )
+                if (!collapsed) dockContent(Modifier.weight(1f).fillMaxWidth())
                 StudioFooter(engine, recordElapsed, vm::toggleRecording, onGoLive)
             }
         }
@@ -306,11 +350,12 @@ private fun StudioContent(
 
     // ------------------------------------------------------------ Sheet & dialog
     when (val sh = sheet) {
-        Sheet.AddSource -> AddSourceSheet(
+        Sheet.AddOverlay -> AddSourceSheet(
             currentVideo = editingScene.source,
             onPickVideo = scenes::setVideoSource,
             onAddLayer = scenes::addLayer,
             onDismiss = { sheet = null },
+            showVideo = false,
         )
         is Sheet.Properties -> {
             val item = items.firstOrNull { it.key == sh.key }

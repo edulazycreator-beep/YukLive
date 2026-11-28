@@ -11,6 +11,7 @@ import android.view.SurfaceView
 import androidx.core.content.ContextCompat
 import com.pedro.common.ConnectChecker
 import com.pedro.common.VideoCodec
+import com.pedro.encoder.input.sources.OrientationConfig
 import com.pedro.encoder.input.sources.video.VideoSource
 import com.pedro.encoder.utils.gl.AspectRatioMode
 import com.pedro.library.base.recording.RecordController
@@ -220,6 +221,7 @@ class StreamEngine @Inject constructor(
                 ensureOverlayFilter(s)
                 s.startPreview(view, true)
             }
+            watchSurface(view)
             compositor.start()
             _state.update { it.copy(previewing = true) }
             if (_state.value.source == SourceKind.Camera) scope.launch {
@@ -227,6 +229,39 @@ class StreamEngine @Inject constructor(
                 camera.applySelectedLens()
             }
         }.onFailure { message(R.string.msg_preview_failed, UiMessage.Level.Error) }
+    }
+
+    /**
+     * RootEncoder melepas callback-nya saat surface hancur (aplikasi ke background),
+     * jadi preview tidak menyala lagi saat kembali. Callback ini yang menyalakan ulang.
+     */
+    private val watchedViews = java.util.WeakHashMap<SurfaceView, Boolean>()
+
+    private fun watchSurface(view: SurfaceView) {
+        if (watchedViews.containsKey(view)) return
+        watchedViews[view] = true
+        view.holder.addCallback(object : android.view.SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: android.view.SurfaceHolder) {
+                view.post {
+                    val s = stream ?: return@post
+                    if (previewView !== view || s.isOnPreview || preparedWith == null) return@post
+                    runCatching {
+                        ensureOverlayFilter(s)
+                        s.startPreview(view, true)
+                        applyOrientation(s, _state.value.source)
+                        compositor.invalidate()
+                    }
+                    if (_state.value.source == SourceKind.Camera) scope.launch {
+                        delay(600)
+                        camera.applySelectedLens()
+                    }
+                }
+            }
+            override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {
+                if (previewView === view) runCatching { stream?.getGlInterface()?.setPreviewResolution(width, height) }
+            }
+            override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {}
+        })
     }
 
     fun detachPreview(view: SurfaceView) {
@@ -382,7 +417,7 @@ class StreamEngine @Inject constructor(
         val s = stream
         if (s == null || preparedWith == null) {
             _state.update { it.copy(source = kind) }
-            stream?.let { st -> runCatching { st.changeVideoSource(sourceFor(kind)) } }
+            stream?.let { st -> runCatching { st.changeVideoSource(sourceFor(kind)); applyOrientation(st, kind) } }
             return
         }
         val fade = allowFade && _state.value.settings.transition == TransitionType.Fade && (s.isOnPreview || s.isStreaming)
@@ -395,6 +430,7 @@ class StreamEngine @Inject constructor(
             val ok = runCatching {
                 if (current == SourceKind.Camera) camera.onClosed()
                 s.changeVideoSource(sourceFor(kind))
+                applyOrientation(s, kind)
             }.isSuccess
             if (ok) {
                 _state.update { it.copy(source = kind) }
@@ -531,7 +567,10 @@ class StreamEngine @Inject constructor(
         return true
     }
 
+    private var preparedSettings: StreamSettings? = null
+
     private fun prepareWith(s: GenericStream, st: StreamSettings): Boolean {
+        preparedSettings = st
         s.setVideoCodec(if (st.codec == VideoCodecOption.H265) VideoCodec.H265 else VideoCodec.H264)
         val rotation = if (st.orientation == StreamOrientation.Portrait) 90 else 0
         val video = s.prepareVideo(
@@ -544,7 +583,32 @@ class StreamEngine @Inject constructor(
         )
         val audio = s.prepareAudio(st.sampleRate, st.stereo, st.audioBitrateKbps * 1000)
         compositor.setOutputSize(st.outputWidth, st.outputHeight)
+        if (video) applyOrientation(s, _state.value.source, st)
         return video && audio
+    }
+
+    /**
+     * RootEncoder menebak orientasi kamera dari rotasi layar SAAT prepare / ganti sumber.
+     * Kalau layar belum selesai berputar (Studio baru dibuka), hasilnya miring atau gepeng.
+     * Jadi orientasi dikunci eksplisit sesuai orientasi stream, bukan sesuai layar.
+     *  - Kamera HP: buffer kamera sudah dikoreksi sensor → 270 (landscape) / 0 (portrait).
+     *  - USB / Wi-Fi: frame sudah tegak → tanpa rotasi.
+     */
+    private fun applyOrientation(
+        s: GenericStream,
+        kind: SourceKind,
+        st: StreamSettings = preparedSettings ?: _state.value.settings,
+    ) {
+        val portrait = st.orientation == StreamOrientation.Portrait
+        val cameraOrientation = when (kind) {
+            SourceKind.Camera -> if (portrait) 0 else 270
+            else -> 0
+        }
+        runCatching {
+            s.getGlInterface().setOrientationConfig(
+                OrientationConfig(cameraOrientation = cameraOrientation, isPortrait = portrait),
+            )
+        }
     }
 
     // ---------------------------------------------------------------- Rekam lokal
