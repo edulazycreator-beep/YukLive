@@ -346,7 +346,7 @@
     <string name="dock_sources">Sources · %1$s</string>
     <string name="dock_tab_audio">Audio</string>
     <string name="dock_tab_controls">Controls</string>
-    <string name="dock_tab_scene_source">Scenes &amp; Sources</string>
+    <string name="dock_tab_scene_source">Scenes</string>
     <string name="dock_tab_scenes">Scenes</string>
     <string name="dock_tab_sources">Sources</string>
     <string name="dock_toggle_lock">Lock position</string>
@@ -383,4 +383,6 @@
     <string name="studio_program_short">PGM</string>
     <string name="studio_transition_type">Transition · %1$s</string>
     <string name="subtitle_preview_placeholder">Subtitle preview appears here</string>
+    <string name="subtitle_section_test">Display test</string>
+    <string name="subtitle_heard">Heard: “%1$s”</string>
 </resources>

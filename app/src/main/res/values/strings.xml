@@ -351,7 +351,7 @@
     <string name="dock_sources">Sources · %1$s</string>
     <string name="dock_tab_audio">Audio</string>
     <string name="dock_tab_controls">Kontrol</string>
-    <string name="dock_tab_scene_source">Scene &amp; Sources</string>
+    <string name="dock_tab_scene_source">Scene</string>
     <string name="dock_tab_scenes">Scene</string>
     <string name="dock_tab_sources">Sources</string>
     <string name="dock_toggle_lock">Kunci posisi</string>
@@ -388,4 +388,6 @@
     <string name="studio_program_short">PGM</string>
     <string name="studio_transition_type">Transisi · %1$s</string>
     <string name="subtitle_preview_placeholder">Contoh subtitle tampil di sini</string>
+    <string name="subtitle_section_test">Uji tampilan</string>
+    <string name="subtitle_heard">Terdengar: “%1$s”</string>
 </resources>

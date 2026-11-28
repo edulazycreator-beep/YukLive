@@ -296,6 +296,8 @@ class AudioMixer @Inject constructor(
                     read += n
                 }
                 for (i in read until samples) micBuf[i] = 0
+                // Mic sedang dipakai aplikasi lain / error: jaga tempo 20 ms supaya tidak memutar CPU.
+                if (read == 0) Thread.sleep(20)
             } else {
                 nextTick += 20
                 val sleep = nextTick - SystemClock.elapsedRealtime()
@@ -314,6 +316,8 @@ class AudioMixer @Inject constructor(
                 val v = micBuf[i] * gMic + usbBuf[i] * gUsb + netBuf[i] * gNet
                 out[i] = PcmUtils.clamp(v.toInt())
             }
+            // Subtitle tetap mendengar walau stream di-mute.
+            for (l in pcmListeners) l.onPcm(out, samples, workRate, workChannels)
             if (s.masterMuted) out.fill(0)
 
             peaks[0] = max(peaks[0], PcmUtils.peak(micBuf) * gMic)
@@ -324,7 +328,6 @@ class AudioMixer @Inject constructor(
             encoderCallback?.inputPCMData(
                 Frame(PcmUtils.toBytes(out), 0, samples * 2, TimeUtils.getCurrentTimeMicro()),
             )
-            for (l in pcmListeners) l.onPcm(out, samples, workRate, workChannels)
 
             // 4. Meter VU ~10x per detik
             if (++levelCounter >= 5) {

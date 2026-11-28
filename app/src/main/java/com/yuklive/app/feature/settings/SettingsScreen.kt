@@ -109,7 +109,7 @@ fun SettingsScreen(
             }
 
             // ---------------- Video
-            SettingsSection(stringResource(R.string.settings_section_video))
+            SettingsSection(stringResource(R.string.settings_section_video), first = !locked)
             SettingsCard {
                 val resolutions = EncoderSupport.supportedResolutions()
                 Field(stringResource(R.string.settings_resolution)) {
@@ -266,12 +266,12 @@ private fun LanguagePicker() {
 
 /** Judul bagian pengaturan: lebih besar dari label isian supaya hierarkinya jelas. */
 @Composable
-private fun SettingsSection(title: String) {
+private fun SettingsSection(title: String, first: Boolean = false) {
     Text(
         title,
         style = YukType.TitleSmall,
         color = YukColors.TextPrimary,
-        modifier = Modifier.padding(top = Dimens.S4, bottom = Dimens.S1),
+        modifier = Modifier.padding(top = if (first) Dimens.S1 else Dimens.S4, bottom = Dimens.S1),
     )
 }
 

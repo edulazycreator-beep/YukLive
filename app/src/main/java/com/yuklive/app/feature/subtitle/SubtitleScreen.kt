@@ -100,21 +100,12 @@ fun SubtitleScreen(onBack: () -> Unit, viewModel: SubtitleViewModel = hiltViewMo
         ScreenHeader(title = stringResource(R.string.screen_subtitle), onBack = onBack)
         // Preview menempel di atas supaya efek setiap perubahan langsung terlihat.
         SubtitlePreview(viewModel, Modifier.padding(horizontal = Dimens.ScreenPadding))
-        Spacer(Modifier.height(Dimens.S1))
-        HairlineDivider()
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = Dimens.ScreenPadding),
         ) {
-            Spacer(Modifier.height(Dimens.S2))
-            var testText by rememberSaveable { mutableStateOf("") }
-            val sample = stringResource(R.string.subtitle_sample)
-            YukTextField(testText, { testText = it }, placeholder = sample, label = stringResource(R.string.subtitle_manual_text))
-            Spacer(Modifier.height(Dimens.S1))
-            PillButton(stringResource(R.string.subtitle_test), onClick = { viewModel.test(testText.ifBlank { sample }) },
-                modifier = Modifier.fillMaxWidth())
 
             // ---------------- Mesin
             SectionHeader(stringResource(R.string.subtitle_section_engine))
@@ -124,7 +115,7 @@ fun SubtitleScreen(onBack: () -> Unit, viewModel: SubtitleViewModel = hiltViewMo
             }
             if (rec.partial.isNotBlank()) {
                 Spacer(Modifier.height(Dimens.S1))
-                Text("“${rec.partial}”", style = YukType.BodySmall, color = YukColors.TextSecondary)
+                Text(stringResource(R.string.subtitle_heard, rec.partial), style = YukType.BodySmall, color = YukColors.TextSecondary)
             }
             Spacer(Modifier.height(Dimens.S1))
             ScrollPills(
@@ -159,6 +150,15 @@ fun SubtitleScreen(onBack: () -> Unit, viewModel: SubtitleViewModel = hiltViewMo
                     onDelete = viewModel::deleteModel,
                 )
             }
+
+            // ---------------- Uji tampilan
+            SectionHeader(stringResource(R.string.subtitle_section_test))
+            var testText by rememberSaveable { mutableStateOf("") }
+            val sample = stringResource(R.string.subtitle_sample)
+            YukTextField(testText, { testText = it }, placeholder = sample, label = stringResource(R.string.subtitle_manual_text))
+            Spacer(Modifier.height(Dimens.S1))
+            PillButton(stringResource(R.string.subtitle_test), onClick = { viewModel.test(testText.ifBlank { sample }) },
+                modifier = Modifier.fillMaxWidth())
 
             // ---------------- Potongan
             SectionHeader(stringResource(R.string.subtitle_section_chunk))
@@ -300,7 +300,7 @@ private fun SubtitlePreview(viewModel: SubtitleViewModel, modifier: Modifier = M
     Box(
         modifier
             .fillMaxWidth()
-            .height(170.dp)
+            .height(140.dp)
             .background(YukColors.Surface)
             .border(Dimens.Hairline, YukColors.Border),
     ) {

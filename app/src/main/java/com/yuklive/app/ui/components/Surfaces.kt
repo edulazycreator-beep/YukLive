@@ -70,7 +70,10 @@ fun YukLabel(
     modifier: Modifier = Modifier,
     color: Color = YukColors.TextSecondary,
 ) {
-    Text(text = text.uppercase(), style = YukType.Label, color = color, modifier = modifier)
+    Text(
+        text = text.uppercase(), style = YukType.Label, color = color, modifier = modifier,
+        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
