@@ -49,6 +49,8 @@ class SubtitleEngine @Inject constructor(
     private val display = ArrayList<DisplayWord>()
     private var utteranceStartIndex = 0 // posisi kata pertama ucapan aktif di [display]
     private var utteranceSkip = 0       // jumlah kata awal ucapan yang sudah "tergulung"
+    private var skippedWords: List<String> = emptyList() // isi kata yang tergulung (untuk deteksi revisi)
+    private var utteranceWords: List<String> = emptyList() // kata ucapan aktif terakhir
     private var lastSpeechAt = 0L
     private var version = 0L
 
@@ -209,6 +211,22 @@ class SubtitleEngine @Inject constructor(
             val capacity = config.style.capacity.coerceAtLeast(1)
             var changed = false
 
+            // Recognizer Android sering MEREVISI kata yang sudah lewat (mis. "satu dua tiga" → "123"),
+            // sehingga jumlah kata bisa menyusut di bawah batas yang sudah tergulung dan subtitle
+            // tidak muncul lagi sampai ucapan selesai. Kalau bagian tergulung berubah, potong batasnya
+            // ke awalan yang masih sama supaya teks revisi tetap tampil.
+            if (utteranceSkip > 0) {
+                var common = 0
+                while (common < words.size && common < skippedWords.size && words[common] == skippedWords[common]) common++
+                if (common < utteranceSkip) {
+                    utteranceSkip = common
+                    skippedWords = skippedWords.take(common)
+                    while (display.size > utteranceStartIndex) display.removeAt(display.lastIndex)
+                    changed = true
+                }
+            }
+            utteranceWords = words
+
             for (i in words.indices) {
                 if (i < utteranceSkip) continue
                 var idx = utteranceStartIndex + (i - utteranceSkip)
@@ -217,6 +235,7 @@ class SubtitleEngine @Inject constructor(
                     display.clear()
                     utteranceStartIndex = 0
                     utteranceSkip = i
+                    skippedWords = words.take(i)
                     idx = 0
                 }
                 if (idx < display.size) {
@@ -248,6 +267,8 @@ class SubtitleEngine @Inject constructor(
                 utteranceStartedAt = null
                 utteranceStartIndex = display.size
                 utteranceSkip = 0
+                skippedWords = emptyList()
+                utteranceWords = emptyList()
             }
         }
     }
@@ -256,6 +277,7 @@ class SubtitleEngine @Inject constructor(
         if (display.isEmpty()) return
         // Kalau ucapan masih berjalan, kata yang sudah tampil jangan muncul lagi.
         utteranceSkip += (display.size - utteranceStartIndex).coerceAtLeast(0)
+        skippedWords = utteranceWords.take(utteranceSkip)
         utteranceStartIndex = 0
         display.clear()
         version++
