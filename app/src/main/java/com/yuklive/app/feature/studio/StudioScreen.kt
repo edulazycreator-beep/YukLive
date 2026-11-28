@@ -219,19 +219,11 @@ private fun StudioContent(
                 modifier = m,
             )
     }
-    val videoItems = items.filterIsInstance<SourceItem.Video>()
-    val overlayItems = items.filter { it !is SourceItem.Video }
-    // Tab SCENE: daftar scene + sumber video scene yang sedang diedit.
-    val scenePanel: @Composable (Modifier) -> Unit = { m ->
-        Column(m) {
-            scenesPanel(Modifier.weight(1f).fillMaxWidth())
-            HairlineDivider()
-            SourceList(Modifier.fillMaxWidth(), stringResource(R.string.dock_video_source), videoItems, null)
-        }
-    }
-    // Tab OVERLAY: subtitle + layer teks/gambar/running text.
+    // Tab SCENE: daftar scene saja.
+    val scenePanel: @Composable (Modifier) -> Unit = { m -> scenesPanel(m) }
+    // Tab OVERLAY (= Sources di OBS): subtitle & layer di atas, sumber video paling bawah.
     val overlayPanel: @Composable (Modifier) -> Unit = { m ->
-        SourceList(m, stringResource(R.string.dock_overlay, editingScene.name), overlayItems) { sheet = Sheet.AddOverlay }
+        SourceList(m, stringResource(R.string.dock_overlay, editingScene.name), items) { sheet = Sheet.AddOverlay }
     }
     val audioPanel: @Composable (Modifier) -> Unit = { m ->
         AudioPanel(mixer, vm::setMasterMuted, vm::setChannelMuted, vm::setGain, onOpenSources, m)
@@ -356,7 +348,6 @@ private fun StudioContent(
             onPickVideo = scenes::setVideoSource,
             onAddLayer = scenes::addLayer,
             onDismiss = { sheet = null },
-            showVideo = false,
         )
         is Sheet.Properties -> {
             val item = items.firstOrNull { it.key == sh.key }

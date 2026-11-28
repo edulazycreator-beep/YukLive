@@ -97,9 +97,11 @@ fun AddSourceSheet(
     onDismiss: () -> Unit,
     showVideo: Boolean = true,
 ) {
-    StudioSheet(stringResource(if (showVideo) R.string.dock_add_source else R.string.dock_add_overlay), onDismiss) {
+    StudioSheet(stringResource(R.string.dock_add_source), onDismiss) {
       if (showVideo) {
         YukLabel(stringResource(R.string.add_section_video))
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.add_video_hint), style = YukType.BodySmall, color = YukColors.TextSecondary)
         Spacer(Modifier.height(Dimens.S1))
         RowGroup {
             SourceKind.entries.forEachIndexed { i, k ->

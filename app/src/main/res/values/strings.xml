@@ -341,7 +341,7 @@
     <string name="action_record">Rekam</string>
     <string name="add_current">Dipakai</string>
     <string name="add_section_overlay">Overlay</string>
-    <string name="add_section_video">Sumber video scene</string>
+    <string name="add_section_video">Video (kamera, capture card, Wi-Fi)</string>
     <string name="dock_add_source">Tambah source</string>
     <string name="dock_audio">Mixer audio</string>
     <string name="dock_master_mute">Bisukan semua</string>
@@ -404,4 +404,5 @@
     <string name="scene_copy_name">%1$s (salinan)</string>
     <string name="scene_duplicate">Duplikat scene</string>
     <string name="dock_subtitle_hidden_scene">Disembunyikan di scene ini</string>
+    <string name="add_video_hint">Satu scene memakai satu video sebagai lapisan paling bawah. Memilih yang lain akan menggantinya.</string>
 </resources>
