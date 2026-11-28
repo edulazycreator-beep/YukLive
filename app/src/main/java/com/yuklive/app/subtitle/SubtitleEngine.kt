@@ -43,6 +43,8 @@ class SubtitleEngine @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Volatile private var config = SubtitleConfig()
+    /** Posisi sementara saat subtitle sedang digeser di Studio (sebelum disimpan). */
+    @Volatile private var offsetOverride: Pair<Float, Float>? = null
     private val lock = Any()
 
     // ---- Tampilan
@@ -81,6 +83,7 @@ class SubtitleEngine @Inject constructor(
             var lastKey: Any? = null
             repository.config.collect { c ->
                 config = c
+                offsetOverride?.let { o -> if (o.first == c.style.offsetX && o.second == c.style.offsetY) offsetOverride = null }
                 synchronized(lock) { version++ }
                 val key = listOf(c.enabled, c.engine, c.language, c.voskModel)
                 if (key != lastKey) {
@@ -107,10 +110,31 @@ class SubtitleEngine @Inject constructor(
     fun frame(): SubtitleFrame = synchronized(lock) {
         SubtitleFrame(
             words = display.toList(),
-            style = config.style,
+            style = effectiveStyle(),
             visible = (config.enabled || testJob?.isActive == true) && display.isNotEmpty(),
             version = version,
         )
+    }
+
+    fun effectiveStyle(): SubtitleStyle =
+        offsetOverride?.let { config.style.copy(offsetX = it.first, offsetY = it.second) } ?: config.style
+
+    /** Geser subtitle (fraksi layar); tampil langsung, disimpan lewat [commitOffset]. */
+    fun moveBy(dx: Float, dy: Float) {
+        val st = effectiveStyle()
+        offsetOverride = (st.offsetX + dx).coerceIn(-0.9f, 0.9f) to (st.offsetY + dy).coerceIn(-0.9f, 0.9f)
+        synchronized(lock) { version++ }
+    }
+
+    fun commitOffset() {
+        val o = offsetOverride ?: return
+        scope.launch { repository.update { it.copy(style = it.style.copy(offsetX = o.first, offsetY = o.second)) } }
+    }
+
+    fun resetOffset() {
+        offsetOverride = 0f to 0f
+        synchronized(lock) { version++ }
+        commitOffset()
     }
 
     /** Snapshot untuk preview di layar Subtitle (selalu terlihat). */

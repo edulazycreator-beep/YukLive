@@ -32,6 +32,9 @@ data class SubtitleStyle(
     val hollow: Boolean = false,
     val position: SubtitlePosition = SubtitlePosition.Bottom,
     val align: SubtitleAlign = SubtitleAlign.Center,
+    /** Geser bebas dari posisi dasar, dalam fraksi lebar/tinggi layar (bisa digeser di Studio). */
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
 ) {
     val capacity: Int get() = maxWordsPerLine * maxLines
 }

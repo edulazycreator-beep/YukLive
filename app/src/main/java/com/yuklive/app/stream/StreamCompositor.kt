@@ -39,6 +39,8 @@ class StreamCompositor @Inject constructor(
     @Volatile private var height = 720
     @Volatile var overlayEnabled = true
     @Volatile var liveStartedAt: Long? = null
+    /** Studio Mode: scene Program yang "dibekukan" saat transisi; null = ikut scene aktif. */
+    @Volatile var programOverride: com.yuklive.app.overlay.Scene? = null
 
     // Transisi: 0 = video terlihat, 1 = layar hitam penuh.
     @Volatile private var fadeFrom = 0f
@@ -112,10 +114,11 @@ class StreamCompositor @Inject constructor(
             val frameStart = SystemClock.elapsedRealtime()
             val now = frameStart
             val doc = overlayRepo.document.value
-            val layers = if (overlayEnabled) doc.activeScene.layers else emptyList()
+            val program = programOverride ?: doc.activeScene
+            val layers = if (overlayEnabled) program.layers else emptyList()
             val subtitle = subtitleEngine.frame()
             val fade = currentFade(now)
-            val sceneSubtitle = doc.activeScene.showSubtitle
+            val sceneSubtitle = program.showSubtitle
             val docHash = layers.hashCode() + (if (overlayEnabled) 1 else 0) + (if (sceneSubtitle) 2 else 0)
             val second = now / 1000
 

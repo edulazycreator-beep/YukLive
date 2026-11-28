@@ -51,15 +51,35 @@ import com.yuklive.app.ui.theme.Dimens
 import com.yuklive.app.ui.theme.YukColors
 import com.yuklive.app.ui.theme.YukType
 
+import android.view.SurfaceHolder
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.PathEffect
+import com.yuklive.app.core.settings.SourceKind
+import com.yuklive.app.subtitle.SubtitleFrame
+import com.yuklive.app.subtitle.SubtitleRenderer
+import com.yuklive.app.subtitle.SubtitleStyle
+
 /** Ukuran terbesar dengan rasio [ratio] yang muat di (maxW, maxH). */
 private fun fit(maxW: Dp, maxH: Dp, ratio: Float): Pair<Dp, Dp> {
     val wByH = maxH * ratio
     return if (wByH <= maxW) wByH to maxH else maxW to (maxW / ratio)
 }
 
+const val SUBTITLE_KEY = "subtitle"
+
+/** Semua yang dibutuhkan panggung untuk menggambar & menggeser subtitle. */
+class StageSubtitle(
+    val renderer: SubtitleRenderer,
+    val frame: () -> SubtitleFrame,
+    val style: () -> SubtitleStyle,
+    val onMove: (Float, Float) -> Unit,
+)
+
 /**
- * Panggung Studio. Mode biasa: hanya PROGRAM (video asli dari pipeline).
- * Studio Mode: PREVIEW (scene yang disiapkan) + tombol TRANSISI + PROGRAM.
+ * Panggung Studio. Mode biasa: hanya PROGRAM (video asli dari pipeline, overlay dibakar GL).
+ * Studio Mode: PREVIEW + PROGRAM sama-sama video langsung; overlay masing-masing
+ * digambar di UI, sehingga isi Preview bisa disiapkan tanpa mengubah Program.
  */
 @Composable
 fun StudioStage(
@@ -70,10 +90,13 @@ fun StudioStage(
     previewScene: Scene,
     selectedLayerId: String?,
     renderer: OverlayRenderer,
+    subtitle: StageSubtitle,
     liveStartedAt: Long?,
     isLive: Boolean,
     onAttach: (SurfaceView) -> Unit,
     onDetach: (SurfaceView) -> Unit,
+    onAttachPvw: (android.view.Surface, Int, Int) -> Unit,
+    onDetachPvw: (android.view.Surface) -> Unit,
     onSelectLayer: (String?) -> Unit,
     onTransformLayer: (Float, Float, Float, Float) -> Unit,
     onFocus: (SurfaceView, Float, Float) -> Unit,
@@ -84,25 +107,26 @@ fun StudioStage(
 ) {
     if (!studioMode) {
         ProgramPanel(
-            outputRatio, programScene.layers, selectedLayerId, renderer, editable = true, label = null, isLive = isLive,
+            outputRatio, programScene, selectedLayerId, renderer, subtitle, liveStartedAt,
+            editable = true, drawOverlay = false, label = null, isLive = isLive,
             onAttach, onDetach, onSelectLayer, onTransformLayer, onFocus, onZoom, modifier,
         )
         return
     }
-    // Studio Mode: PREVIEW dan PROGRAM selalu berdampingan (orientasi layar sudah
-    // dikunci mengikuti stream, jadi berdampingan memberi panel terbesar).
     @Suppress("UNUSED_VARIABLE") val unused = landscape
     Column(modifier) {
         Row(
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            ScenePreviewPanel(
-                outputRatio, previewScene, selectedLayerId, renderer, liveStartedAt,
-                onSelectLayer, onTransformLayer, Modifier.weight(1f).fillMaxHeight(),
+            PreviewPanel(
+                outputRatio, previewScene, sameVideo = previewScene.source == programScene.source,
+                selectedLayerId, renderer, subtitle, liveStartedAt,
+                onAttachPvw, onDetachPvw, onSelectLayer, onTransformLayer, Modifier.weight(1f).fillMaxHeight(),
             )
             ProgramPanel(
-                outputRatio, programScene.layers, null, renderer, editable = false,
+                outputRatio, programScene, null, renderer, subtitle, liveStartedAt,
+                editable = false, drawOverlay = true,
                 label = stringResource(R.string.studio_program_short), isLive = isLive,
                 onAttach, onDetach, {}, { _, _, _, _ -> }, onFocus, onZoom,
                 Modifier.weight(1f).fillMaxHeight(),
@@ -114,14 +138,81 @@ fun StudioStage(
     }
 }
 
-/** Video asli (SurfaceView) dengan lapisan edit: pilih / geser / cubit / putar layer, atau fokus & zoom kamera. */
+@Composable
+private fun rememberNow(): Long {
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(Unit) { while (true) withFrameMillis { now = SystemClock.elapsedRealtime() } }
+    return now
+}
+
+/** Overlay scene + subtitle, digambar di UI (Studio Mode). */
+private fun DrawScope.drawSceneOverlay(
+    scene: Scene,
+    renderer: OverlayRenderer,
+    subtitle: StageSubtitle,
+    liveStartedAt: Long?,
+    now: Long,
+) {
+    drawIntoCanvas { c ->
+        renderer.draw(c.nativeCanvas, size.width, size.height, scene.layers, liveStartedAt, now)
+        if (scene.showSubtitle) {
+            val f = subtitle.frame()
+            if (f.visible) subtitle.renderer.draw(c.nativeCanvas, size.width, size.height, f, now)
+        }
+    }
+}
+
+/** Kotak seleksi layer / area subtitle. */
+private fun DrawScope.drawSelection(
+    scene: Scene,
+    selected: String?,
+    renderer: OverlayRenderer,
+    subtitle: StageSubtitle,
+) {
+    if (selected == SUBTITLE_KEY) {
+        val r = subtitle.renderer.area(size.width, size.height, subtitle.style())
+        drawRect(
+            color = YukColors.Live,
+            topLeft = Offset(r.left, r.top),
+            size = Size(r.width(), r.height()),
+            style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f))),
+        )
+        return
+    }
+    scene.layers.firstOrNull { it.id == selected }?.let { l ->
+        val r = renderer.bounds(l, size.width, size.height)
+        drawRect(
+            color = if (l.locked) YukColors.TextSecondary else YukColors.Live,
+            topLeft = Offset(r.left, r.top),
+            size = Size(r.width(), r.height()),
+            style = Stroke(width = 2.dp.toPx()),
+        )
+    }
+}
+
+/** Layer yang tersentuh di titik (x, y); subtitle ikut kalau sedang tampil. */
+private fun hitTest(
+    scene: Scene, x: Float, y: Float, w: Float, h: Float,
+    renderer: OverlayRenderer, subtitle: StageSubtitle,
+): String? {
+    scene.layers.lastOrNull { l -> l.visible && renderer.bounds(l, w, h).contains(x, y) }?.let { return it.id }
+    if (scene.showSubtitle && subtitle.frame().visible && subtitle.renderer.area(w, h, subtitle.style()).contains(x, y)) {
+        return SUBTITLE_KEY
+    }
+    return null
+}
+
+/** Video asli (SurfaceView) dengan lapisan edit: pilih / geser / cubit / putar layer & subtitle, atau fokus & zoom kamera. */
 @Composable
 private fun ProgramPanel(
     ratio: Float,
-    layers: List<OverlayLayer>,
+    scene: Scene,
     selectedLayerId: String?,
     renderer: OverlayRenderer,
+    subtitle: StageSubtitle,
+    liveStartedAt: Long?,
     editable: Boolean,
+    drawOverlay: Boolean,
     label: String?,
     isLive: Boolean,
     onAttach: (SurfaceView) -> Unit,
@@ -132,7 +223,7 @@ private fun ProgramPanel(
     onZoom: (Float) -> Unit,
     modifier: Modifier,
 ) {
-    val currentLayers by rememberUpdatedState(layers)
+    val currentScene by rememberUpdatedState(scene)
     val selected by rememberUpdatedState(selectedLayerId)
     val select by rememberUpdatedState(onSelectLayer)
     val transform by rememberUpdatedState(onTransformLayer)
@@ -140,12 +231,15 @@ private fun ProgramPanel(
     val zoom by rememberUpdatedState(onZoom)
     val detach by rememberUpdatedState(onDetach)
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
+    // Animasi selalu jalan untuk overlay UI; untuk mode biasa cukup saat subtitle dipilih.
+    val now = if (drawOverlay || selectedLayerId == SUBTITLE_KEY) rememberNow() else 0L
 
     BoxWithConstraints(modifier.background(YukColors.Black), contentAlignment = Alignment.Center) {
         val (w, h) = fit(maxWidth, maxHeight, ratio)
         Box(
             Modifier
                 .size(w, h)
+                .clipToBounds()
                 .then(
                     if (label != null) Modifier.border(2.dp, if (isLive) YukColors.Live else YukColors.BorderStrong)
                     else Modifier,
@@ -162,11 +256,9 @@ private fun ProgramPanel(
                     .fillMaxSize()
                     .pointerInput(editable) {
                         detectTapGestures { pos ->
-                            val hit = if (editable) currentLayers.lastOrNull { l ->
-                                l.visible && renderer.bounds(l, sizePx[0], sizePx[1]).contains(pos.x, pos.y)
-                            } else null
+                            val hit = if (editable) hitTest(currentScene, pos.x, pos.y, sizePx[0], sizePx[1], renderer, subtitle) else null
                             when {
-                                hit != null -> select(hit.id)
+                                hit != null -> select(hit)
                                 selected != null -> select(null)
                                 else -> surface?.let { focus(it, pos.x, pos.y) }
                             }
@@ -174,50 +266,52 @@ private fun ProgramPanel(
                     }
                     .pointerInput(editable) {
                         detectTransformGestures { _, pan, z, rot ->
-                            val layerSelected = editable && selected != null &&
-                                currentLayers.any { it.id == selected && !it.locked }
-                            if (layerSelected && sizePx[0] > 0f) {
-                                transform(pan.x / sizePx[0], pan.y / sizePx[1], z, rot)
-                            } else if (z != 1f) {
-                                zoom(z)
+                            val sel = selected
+                            when {
+                                editable && sel == SUBTITLE_KEY && sizePx[0] > 0f ->
+                                    subtitle.onMove(pan.x / sizePx[0], pan.y / sizePx[1])
+                                editable && sel != null && sizePx[0] > 0f &&
+                                    currentScene.layers.any { it.id == sel && !it.locked } ->
+                                    transform(pan.x / sizePx[0], pan.y / sizePx[1], z, rot)
+                                z != 1f -> zoom(z)
                             }
                         }
                     },
             ) {
                 sizePx[0] = size.width
                 sizePx[1] = size.height
-                currentLayers.firstOrNull { it.id == selected }?.let { l ->
-                    val r = renderer.bounds(l, size.width, size.height)
-                    drawRect(
-                        color = if (l.locked) YukColors.TextSecondary else YukColors.Live,
-                        topLeft = Offset(r.left, r.top),
-                        size = Size(r.width(), r.height()),
-                        style = Stroke(width = 2.dp.toPx()),
-                    )
-                }
+                @Suppress("UNUSED_VARIABLE") val tick = now
+                if (drawOverlay) drawSceneOverlay(scene, renderer, subtitle, liveStartedAt, now)
+                if (editable) drawSelection(scene, selectedLayerId, renderer, subtitle)
             }
             if (label != null) PanelLabel(label, live = isLive, modifier = Modifier.align(Alignment.TopStart))
         }
     }
 }
 
-/** PREVIEW Studio Mode: tata letak overlay scene yang disiapkan (digambar dengan renderer yang sama). */
+/** PREVIEW Studio Mode: video langsung (kalau sumbernya sama dengan Program) + overlay scene yang disiapkan. */
 @Composable
-private fun ScenePreviewPanel(
+private fun PreviewPanel(
     ratio: Float,
     scene: Scene,
+    sameVideo: Boolean,
     selectedLayerId: String?,
     renderer: OverlayRenderer,
+    subtitle: StageSubtitle,
     liveStartedAt: Long?,
+    onAttachPvw: (android.view.Surface, Int, Int) -> Unit,
+    onDetachPvw: (android.view.Surface) -> Unit,
     onSelectLayer: (String?) -> Unit,
     onTransformLayer: (Float, Float, Float, Float) -> Unit,
     modifier: Modifier,
 ) {
-    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
-    LaunchedEffect(Unit) { while (true) withFrameMillis { now = SystemClock.elapsedRealtime() } }
-    val currentLayers by rememberUpdatedState(scene.layers)
+    val now = rememberNow()
+    val currentScene by rememberUpdatedState(scene)
+    val selected by rememberUpdatedState(selectedLayerId)
     val select by rememberUpdatedState(onSelectLayer)
     val transform by rememberUpdatedState(onTransformLayer)
+    val attach by rememberUpdatedState(onAttachPvw)
+    val detach by rememberUpdatedState(onDetachPvw)
     val sourceLabel = stringResource(SceneEditorViewModel.sourceName(scene.source))
 
     BoxWithConstraints(modifier.background(YukColors.Black), contentAlignment = Alignment.Center) {
@@ -229,47 +323,72 @@ private fun ScenePreviewPanel(
                 .background(YukColors.Surface)
                 .border(2.dp, YukColors.Success),
         ) {
-            Text(
-                sourceLabel.uppercase(),
-                style = YukType.Label,
-                color = YukColors.TextDisabled,
-                modifier = Modifier.align(Alignment.Center),
-            )
+            when {
+                sameVideo -> AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        SurfaceView(ctx).also { v ->
+                            v.holder.addCallback(object : SurfaceHolder.Callback {
+                                override fun surfaceCreated(holder: SurfaceHolder) {}
+                                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+                                    attach(holder.surface, width, height)
+                                }
+                                override fun surfaceDestroyed(holder: SurfaceHolder) = detach(holder.surface)
+                            })
+                        }
+                    },
+                    onRelease = { v -> detach(v.holder.surface) },
+                )
+                scene.source == SourceKind.ColorBar -> Canvas(Modifier.fillMaxSize()) { drawColorBars() }
+                else -> Text(
+                    sourceLabel.uppercase(),
+                    style = YukType.Label,
+                    color = YukColors.TextDisabled,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
             val sizePx = remember { floatArrayOf(0f, 0f) }
             Canvas(
                 Modifier
                     .fillMaxSize()
                     .pointerInput(Unit) {
                         detectTapGestures { pos ->
-                            val hit = currentLayers.lastOrNull { l ->
-                                l.visible && renderer.bounds(l, sizePx[0], sizePx[1]).contains(pos.x, pos.y)
-                            }
-                            select(hit?.id)
+                            select(hitTest(currentScene, pos.x, pos.y, sizePx[0], sizePx[1], renderer, subtitle))
                         }
                     }
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, z, rot ->
-                            if (sizePx[0] > 0f) transform(pan.x / sizePx[0], pan.y / sizePx[1], z, rot)
+                            if (sizePx[0] <= 0f) return@detectTransformGestures
+                            if (selected == SUBTITLE_KEY) subtitle.onMove(pan.x / sizePx[0], pan.y / sizePx[1])
+                            else transform(pan.x / sizePx[0], pan.y / sizePx[1], z, rot)
                         }
                     },
             ) {
                 sizePx[0] = size.width
                 sizePx[1] = size.height
-                val t = now
-                drawIntoCanvas { c -> renderer.draw(c.nativeCanvas, size.width, size.height, scene.layers, liveStartedAt, t) }
-                scene.layers.firstOrNull { it.id == selectedLayerId }?.let { l ->
-                    val r = renderer.bounds(l, size.width, size.height)
-                    drawRect(
-                        color = if (l.locked) YukColors.TextSecondary else YukColors.Live,
-                        topLeft = Offset(r.left, r.top),
-                        size = Size(r.width(), r.height()),
-                        style = Stroke(width = 2.dp.toPx()),
-                    )
-                }
+                drawSceneOverlay(scene, renderer, subtitle, liveStartedAt, now)
+                drawSelection(scene, selectedLayerId, renderer, subtitle)
             }
             PanelLabel(stringResource(R.string.studio_preview_label, scene.name), live = false, modifier = Modifier.align(Alignment.TopStart))
         }
     }
+}
+
+/** Color bar versi UI (sama dengan input Color bar). */
+private fun DrawScope.drawColorBars() {
+    val top = longArrayOf(0xFFBFBFBF, 0xFFBFBF00, 0xFF00BFBF, 0xFF00BF00, 0xFFBF00BF, 0xFFBF0000, 0xFF0000BF)
+    val mid = longArrayOf(0xFF0000BF, 0xFF131313, 0xFFBF00BF, 0xFF131313, 0xFF00BFBF, 0xFF131313, 0xFFBFBFBF)
+    val bw = size.width / 7f
+    val topH = size.height * 0.67f
+    val midH = size.height * 0.08f
+    top.forEachIndexed { i, c -> drawRect(Color(c), Offset(i * bw, 0f), Size(bw + 1f, topH)) }
+    mid.forEachIndexed { i, c -> drawRect(Color(c), Offset(i * bw, topH), Size(bw + 1f, midH)) }
+    val y0 = topH + midH
+    val q = bw * 5f / 4f
+    longArrayOf(0xFF00214C, 0xFFFFFFFF, 0xFF32006A, 0xFF131313).forEachIndexed { i, c ->
+        drawRect(Color(c), Offset(i * q, y0), Size(q + 1f, size.height - y0))
+    }
+    drawRect(Color(0xFF131313), Offset(bw * 5f, y0), Size(bw * 2f, size.height - y0))
 }
 
 @Composable

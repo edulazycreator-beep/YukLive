@@ -60,7 +60,9 @@ class StudioViewModel @Inject constructor(
     private val uvc: UvcVideoSource,
     network: NetworkVideoSource,
     liveSession: LiveSessionRepository,
-    subtitleEngine: SubtitleEngine,
+    private val subtitleEngine: SubtitleEngine,
+    /** Renderer subtitle khusus UI (panel PREVIEW/PROGRAM Studio Mode). */
+    val subtitleRenderer: com.yuklive.app.subtitle.SubtitleRenderer,
 ) : ViewModel() {
 
     val engineState: StateFlow<EngineState> = engine.state
@@ -153,6 +155,26 @@ class StudioViewModel @Inject constructor(
     // ---------------------------------------------------------------- Kontrol
 
     fun switchSource(kind: SourceKind) = engine.switchSource(kind)
+
+    fun subtitleFrame() = subtitleEngine.frame()
+    fun subtitleStyle() = subtitleEngine.effectiveStyle()
+
+    private var commitJob: kotlinx.coroutines.Job? = null
+
+    /** Geser subtitle di panggung (fraksi layar). Disimpan setelah jari berhenti. */
+    fun moveSubtitle(dx: Float, dy: Float) {
+        subtitleEngine.moveBy(dx, dy)
+        commitJob?.cancel()
+        commitJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(400)
+            subtitleEngine.commitOffset()
+        }
+    }
+
+    fun resetSubtitlePosition() = subtitleEngine.resetOffset()
+
+    fun attachPvw(surface: android.view.Surface, width: Int, height: Int) = engine.attachPvw(surface, width, height)
+    fun detachPvw(surface: android.view.Surface) = engine.detachPvw(surface)
 
     fun toggleSubtitle() {
         viewModelScope.launch { subtitleRepo.update { it.copy(enabled = !it.enabled) } }

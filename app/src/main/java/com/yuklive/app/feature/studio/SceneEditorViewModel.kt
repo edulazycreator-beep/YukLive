@@ -71,10 +71,13 @@ class SceneEditorViewModel @Inject constructor(
     val liveStartedAt: StateFlow<Long?> = liveSession.state.map { it.startedAtElapsed }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private val _studioMode = MutableStateFlow(false)
+    private val _studioMode = MutableStateFlow(engine.studioMode.value)
     val studioMode: StateFlow<Boolean> = _studioMode.asStateFlow()
 
-    private val _previewSceneId = MutableStateFlow<String?>(null)
+    private val _previewSceneId = MutableStateFlow<String?>(repo.document.value.activeScene.id)
+
+    /** Scene yang sedang tayang (di Studio Mode: hasil transisi terakhir). */
+    val programScene: StateFlow<Scene> = engine.programScene
 
     /** Scene yang sedang diedit (Preview di Studio Mode, Program di mode biasa). */
     val editingScene: StateFlow<Scene> = combine(repo.document, _studioMode, _previewSceneId) { doc, studio, pid ->
@@ -94,6 +97,7 @@ class SceneEditorViewModel @Inject constructor(
     fun setStudioMode(on: Boolean) {
         if (on) _previewSceneId.value = repo.document.value.activeScene.id
         _studioMode.value = on
+        engine.setStudioMode(on)
         _selected.value = null
     }
 
@@ -102,10 +106,13 @@ class SceneEditorViewModel @Inject constructor(
         if (_studioMode.value) _previewSceneId.value = id else engine.transitionToScene(id)
     }
 
-    /** Tombol TRANSISI: Preview → Program. */
+    /** Tombol TRANSISI: Preview → Program, lalu Program lama pindah ke Preview (seperti OBS). */
     fun transition() {
-        val id = _previewSceneId.value ?: return
-        engine.transitionToScene(id)
+        val pvw = _previewSceneId.value ?: return
+        val pgm = engine.programScene.value.id
+        engine.transitionToScene(pvw)
+        if (pgm != pvw) _previewSceneId.value = pgm
+        _selected.value = null
     }
 
     fun addScene() {

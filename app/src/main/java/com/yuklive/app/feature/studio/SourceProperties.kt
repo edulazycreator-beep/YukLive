@@ -240,13 +240,17 @@ fun VideoSourceProperties(
 
 /** Properti subtitle (global, tampil di semua scene). */
 @Composable
-fun SubtitleSourceProperties(enabled: Boolean, onToggle: () -> Unit, onOpenSubtitle: () -> Unit) {
+fun SubtitleSourceProperties(enabled: Boolean, onToggle: () -> Unit, onResetPosition: () -> Unit, onOpenSubtitle: () -> Unit) {
     RowGroup {
         ToggleRow(stringResource(R.string.subtitle_enable), enabled, { onToggle() })
     }
     Spacer(Modifier.height(Dimens.S1))
     Text(stringResource(R.string.props_subtitle_hint), style = YukType.BodySmall, color = YukColors.TextSecondary)
+    Spacer(Modifier.height(Dimens.S1))
+    Text(stringResource(R.string.props_subtitle_move_hint), style = YukType.BodySmall, color = YukColors.TextSecondary)
     Spacer(Modifier.height(Dimens.S2))
+    PillButton(stringResource(R.string.props_subtitle_reset_pos), onClick = onResetPosition, variant = PillVariant.Secondary, modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.height(Dimens.S1))
     PillButton(stringResource(R.string.props_open_subtitle), onClick = onOpenSubtitle, variant = PillVariant.Secondary, modifier = Modifier.fillMaxWidth())
 }
 

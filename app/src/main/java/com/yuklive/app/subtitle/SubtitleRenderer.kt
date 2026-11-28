@@ -40,12 +40,7 @@ class SubtitleRenderer @Inject constructor(
         val lineH = textSize * 1.18f
         val lines = words.chunked(style.maxWordsPerLine.coerceAtLeast(1)).take(style.maxLines)
         val blockH = lineH * lines.size
-        val margin = height * 0.08f
-        val top = when (style.position) {
-            SubtitlePosition.Top -> margin
-            SubtitlePosition.Center -> (height - blockH) / 2
-            SubtitlePosition.Bottom -> height - margin - blockH
-        }
+        val top = baseTop(height, blockH, style) + style.offsetY * height
         val fm = paint.fontMetrics
         val lastIndex = words.lastIndex
         val sideMargin = width * 0.06f
@@ -59,7 +54,7 @@ class SubtitleRenderer @Inject constructor(
                 SubtitleAlign.Left -> sideMargin
                 SubtitleAlign.Center -> (width - lineW) / 2
                 SubtitleAlign.Right -> width - sideMargin - lineW
-            }
+            } + style.offsetX * width
             val lineTop = top + lineH * li
             val baseline = lineTop + (lineH - (fm.descent - fm.ascent)) / 2 - fm.ascent
 
@@ -168,4 +163,23 @@ class SubtitleRenderer @Inject constructor(
     private fun lerp(a: Float, b: Float, t: Float) = a + (b - a) * t
     private fun easeOut(t: Float) = 1f - (1f - t) * (1f - t)
     private fun easeIn(t: Float) = (1 - cos(t * PI / 2)).toFloat()
+
+    private fun baseTop(height: Float, blockH: Float, style: SubtitleStyle): Float {
+        val margin = height * 0.08f
+        return when (style.position) {
+            SubtitlePosition.Top -> margin
+            SubtitlePosition.Center -> (height - blockH) / 2
+            SubtitlePosition.Bottom -> height - margin - blockH
+        }
+    }
+
+    /** Area tempat subtitle muncul (untuk kotak seleksi & geser di Studio). */
+    fun area(width: Float, height: Float, style: SubtitleStyle): RectF {
+        val textSize = min(width, height) * style.size
+        val blockH = textSize * 1.18f * style.maxLines.coerceAtLeast(1)
+        val top = baseTop(height, blockH, style) + style.offsetY * height
+        val side = width * 0.06f
+        val left = side + style.offsetX * width
+        return RectF(left, top, left + width - side * 2, top + blockH)
+    }
 }

@@ -73,6 +73,7 @@ class SubtitleRepository @Inject constructor(
         .put("size", s.size.toDouble()).put("text", s.textColor).put("accent", s.accentColor).put("stroke", s.strokeColor)
         .put("strokeW", s.strokeWidth.toDouble()).put("box", s.boxColor).put("opacity", s.opacity.toDouble())
         .put("hollow", s.hollow).put("pos", s.position.name).put("align", s.align.name)
+        .put("ox", s.offsetX.toDouble()).put("oy", s.offsetY.toDouble())
 
     private fun styleFrom(o: JSONObject): SubtitleStyle {
         val d = SubtitleStyle()
@@ -94,6 +95,8 @@ class SubtitleRepository @Inject constructor(
             hollow = o.optBoolean("hollow", false),
             position = enumOr(o.optString("pos"), d.position),
             align = enumOr(o.optString("align"), d.align),
+            offsetX = o.optDouble("ox", 0.0).toFloat().coerceIn(-1f, 1f),
+            offsetY = o.optDouble("oy", 0.0).toFloat().coerceIn(-1f, 1f),
         )
     }
 }

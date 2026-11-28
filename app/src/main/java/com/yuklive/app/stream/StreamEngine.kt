@@ -46,6 +46,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -151,6 +154,19 @@ class StreamEngine @Inject constructor(
         _stats.update { it.copy(targetBitrateKbps = bitrate / 1000) }
     }
 
+    private val _studioMode = MutableStateFlow(false)
+    val studioMode: StateFlow<Boolean> = _studioMode.asStateFlow()
+    private val programSnapshot = MutableStateFlow<Scene?>(null)
+
+    /**
+     * Scene yang sedang tayang. Mode biasa: scene aktif (perubahan langsung tayang).
+     * Studio Mode: salinan scene saat transisi terakhir, jadi edit di Preview tidak
+     * ikut tayang sebelum tombol TRANSISI ditekan.
+     */
+    val programScene: StateFlow<Scene> = combine(overlayRepo.document, programSnapshot) { doc, snap ->
+        snap?.takeIf { s -> doc.scenes.any { it.id == s.id } } ?: doc.activeScene
+    }.stateIn(scope, SharingStarted.Eagerly, overlayRepo.document.value.activeScene)
+
     init {
         scope.launch {
             settingsRepo.settings.collect { s ->
@@ -188,11 +204,12 @@ class StreamEngine @Inject constructor(
                 }
             }
         }
-        // Scene aktif menentukan sumber video.
+        // Scene Program menentukan sumber video & overlay yang tayang.
         scope.launch {
             var lastKey: Pair<String, SourceKind>? = null
-            overlayRepo.document.collect { doc ->
-                val scene = doc.activeScene
+            programScene.collect { scene ->
+                compositor.programOverride = if (studioMode.value) scene else null
+                compositor.invalidate()
                 val key = scene.id to scene.source
                 if (key != lastKey) {
                     val first = lastKey == null
@@ -209,6 +226,54 @@ class StreamEngine @Inject constructor(
     }
 
     // ---------------------------------------------------------------- Preview
+
+    // ---------------------------------------------------------------- Studio Mode
+
+    fun setStudioMode(on: Boolean) {
+        _studioMode.value = on
+        programSnapshot.value = if (on) overlayRepo.document.value.activeScene else null
+        // Studio Mode: overlay hanya dibakar ke output (encoder). Kedua panel menampilkan
+        // video bersih dan overlay digambar di UI, supaya Preview & Program bisa beda.
+        compositor.filter.renderMode =
+            if (on) com.pedro.encoder.input.gl.render.RenderMode.OUTPUT else com.pedro.encoder.input.gl.render.RenderMode.ALL
+        compositor.programOverride = programSnapshot.value
+        compositor.invalidate()
+        if (!on) pvwSurface?.let { surf -> runCatching { stream?.getGlInterface()?.removeMultiPreviewSurface(surf) } }
+    }
+
+    // Panel PREVIEW: permukaan kedua yang menerima video langsung.
+    private var pvwSurface: android.view.Surface? = null
+    private var pvwSize = 0 to 0
+
+    fun attachPvw(surface: android.view.Surface, width: Int, height: Int) {
+        pvwSurface = surface
+        pvwSize = width to height
+        addPvw()
+    }
+
+    fun detachPvw(surface: android.view.Surface) {
+        runCatching { stream?.getGlInterface()?.removeMultiPreviewSurface(surface) }
+        if (pvwSurface === surface) pvwSurface = null
+    }
+
+    private fun addPvw() {
+        val surf = pvwSurface ?: return
+        val s = stream ?: return
+        if (!_studioMode.value || !surf.isValid) return
+        val gl = s.getGlInterface()
+        if (!gl.isRunning) return
+        val portrait = _state.value.settings.orientation == StreamOrientation.Portrait &&
+            _state.value.source == SourceKind.Camera
+        runCatching {
+            gl.addMultiPreviewSurface(
+                surf,
+                com.pedro.library.view.preview.MultiPreviewConfig(
+                    width = pvwSize.first, height = pvwSize.second,
+                    aspectRatioMode = AspectRatioMode.Adjust, isPortrait = portrait,
+                ),
+            )
+        }
+    }
 
     fun attachPreview(view: SurfaceView) {
         val old = previewView
@@ -227,6 +292,7 @@ class StreamEngine @Inject constructor(
                 s.startPreview(view, true)
             }
             watchSurface(view)
+            addPvw()
             compositor.start()
             _state.update { it.copy(previewing = true) }
             if (_state.value.source == SourceKind.Camera) scope.launch {
@@ -254,6 +320,7 @@ class StreamEngine @Inject constructor(
                         ensureOverlayFilter(s)
                         s.startPreview(view, true)
                         applyOrientation(s, _state.value.source)
+                        addPvw()
                         compositor.invalidate()
                     }
                     if (_state.value.source == SourceKind.Camera) scope.launch {
@@ -439,6 +506,7 @@ class StreamEngine @Inject constructor(
             }.isSuccess
             if (ok) {
                 _state.update { it.copy(source = kind) }
+                addPvw()
                 if (kind == SourceKind.Camera) {
                     delay(500)
                     camera.applySelectedLens()
@@ -460,10 +528,13 @@ class StreamEngine @Inject constructor(
     fun transitionToScene(sceneId: String) {
         val doc = overlayRepo.document.value
         val target = doc.scenes.firstOrNull { it.id == sceneId } ?: return
-        if (doc.activeScene.id == sceneId || _state.value.switching) return
+        val studio = _studioMode.value
+        // Studio Mode: scene yang sama tetap boleh ditransisi (menayangkan hasil edit Preview).
+        if ((!studio && doc.activeScene.id == sceneId) || _state.value.switching) return
         val fade = _state.value.settings.transition == TransitionType.Fade && _state.value.previewing
         if (!fade) {
             sceneSwitchInProgress = true
+            if (studio) programSnapshot.value = target
             overlayRepo.setActiveScene(sceneId)
             if (target.source != _state.value.source) switchSource(target.source, allowFade = false)
             sceneSwitchInProgress = false
@@ -473,6 +544,7 @@ class StreamEngine @Inject constructor(
             compositor.fade(1f, FADE_MS)
             delay(FADE_MS)
             sceneSwitchInProgress = true
+            if (studio) programSnapshot.value = overlayRepo.document.value.scenes.firstOrNull { it.id == sceneId } ?: target
             overlayRepo.setActiveScene(sceneId)
             if (target.source != _state.value.source) {
                 switchSource(target.source, allowFade = false)

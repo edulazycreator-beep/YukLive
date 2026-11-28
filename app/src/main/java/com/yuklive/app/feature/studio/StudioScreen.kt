@@ -138,7 +138,10 @@ private fun StudioContent(
         }
     }
 
-    val programScene = doc.activeScene
+    val programScene by scenes.programScene.collectAsStateWithLifecycle()
+    val stageSubtitle = remember(vm) {
+        StageSubtitle(vm.subtitleRenderer, vm::subtitleFrame, vm::subtitleStyle, vm::moveSubtitle)
+    }
     val outputRatio = engine.settings.outputWidth.toFloat() / engine.settings.outputHeight
     val items = scenes.sourceItems(editingScene)
     val lensName = cam.selected?.let {
@@ -173,10 +176,13 @@ private fun StudioContent(
                 previewScene = editingScene,
                 selectedLayerId = selectedKey,
                 renderer = scenes.renderer,
+                subtitle = stageSubtitle,
                 liveStartedAt = liveStartedAt,
                 isLive = isLive,
                 onAttach = vm::attachPreview,
                 onDetach = vm::detachPreview,
+                onAttachPvw = vm::attachPvw,
+                onDetachPvw = vm::detachPvw,
                 onSelectLayer = scenes::select,
                 onTransformLayer = scenes::transformSelected,
                 onFocus = { v, x, y -> vm.focusAt(v, x, y) },
@@ -366,7 +372,7 @@ private fun StudioContent(
                 }
                 StudioSheet(title, onDismiss = { sheet = null }) {
                     when (item) {
-                        SourceItem.Subtitle -> SubtitleSourceProperties(subtitleOn, vm::toggleSubtitle) {
+                        SourceItem.Subtitle -> SubtitleSourceProperties(subtitleOn, vm::toggleSubtitle, vm::resetSubtitlePosition) {
                             sheet = null
                             onOpenSubtitle()
                         }
